@@ -6,4 +6,4 @@ start:
 stop:
 	sudo docker-compose down
 	pkill -f "spring-boot:run" || true
-	pkill -f "vite" || true
+	pkill -f "next" || true
