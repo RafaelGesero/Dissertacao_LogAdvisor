@@ -1,15 +1,17 @@
 package com.dissertacao.logadvisor.backend.service;
 
+import java.util.List;
+import java.util.stream.Collectors;
+
+import org.springframework.stereotype.Service;
+
 import com.dissertacao.logadvisor.backend.model.ArticleResult;
+
 import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.model.chat.ChatLanguageModel;
 import dev.langchain4j.store.embedding.EmbeddingMatch;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
-
-import java.util.List;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -20,47 +22,47 @@ public class LogAdvisorService {
     private final SerpApiService serpApiService;
     private final ChatLanguageModel chatLanguageModel;
 
-    public String getLoggingAdvice(String query) {
+    //ALTERAR ALGUMAS COISAS NA PARTE DOS ARTIGOS 
+   public String getLoggingAdvice(String query) {
+    List<EmbeddingMatch<TextSegment>> matches = knowledgeBaseService.search(query, 5);
+    String articles_String;
 
-        // 1. Pesquisa na base de conhecimento
-        List<EmbeddingMatch<TextSegment>> matches = knowledgeBaseService.search(query, 5);
+    if (!matches.isEmpty()) {
+        log.info("Foram encontrados os estes artigos na base de conhecimento {}", matches.size());
+        articles_String = matches.stream()
+                .map(match -> match.embedded().text())
+                .filter(text -> text != null && !text.isBlank())
+                .collect(Collectors.joining("\n\n---\n\n"));
+    } else {
+        log.info("Não foram encontrados nenhuns artigos na base, pesquisar com o SerpAPI");
+        List<ArticleResult> articles = serpApiService.searchArticles(query);
 
-        String context;
-
-        if (!matches.isEmpty()) {
-            log.info("Encontrados {} artigos relevantes na base de conhecimento", matches.size());
-            context = matches.stream()
-                    .map(match -> match.embedded().text())
-                    .collect(Collectors.joining("\n\n---\n\n"));
-        } else {
-            // 2. Se não encontrou, pesquisa no SerpApi
-            log.info("Nenhum artigo relevante, pesquisando no SerpApi...");
-            List<ArticleResult> articles = serpApiService.searchArticles(query);
-
-            if (!articles.isEmpty()) {
-                knowledgeBaseService.saveArticles(articles);
-                log.info("Guardados {} artigos na base de conhecimento", articles.size());
-            }
-
-            context = articles.stream()
-                    .map(a -> "Title: " + a.getTitle() + "\nSnippet: " + a.getSnippet())
-                    .collect(Collectors.joining("\n\n---\n\n"));
+        if (!articles.isEmpty()) {
+            knowledgeBaseService.saveArticles(articles);
+            log.info("Guardar os artigos {} na base de conhecimento", articles.size());
         }
 
-        // 3. Gera resposta com o LLM usando o contexto dos artigos
-        String prompt = """
-                És um especialista em logging e segurança de software.
-                Com base nos seguintes artigos académicos, responde à questão do utilizador.
-                
-                Artigos:
-                %s
-                
-                Questão: %s
-                
-                Fornece sugestões específicas de logging para a aplicação descrita,
-                incluindo que eventos devem ser registados e como evitar expor dados sensíveis.
-                """.formatted(context, query);
-
-        return chatLanguageModel.generate(prompt);
+        articles_String = articles.stream()
+                .map(a -> "Title: " + a.getTitle() + "\nSnippet: " + a.getSnippet())
+                .filter(text -> text != null && !text.isBlank())
+                .collect(Collectors.joining("\n\n---\n\n"));
     }
+
+    if (articles_String == null || articles_String.isBlank()) {
+        articles_String = "Não foram encontrados artigos específicos. Responde com base no teu conhecimento geral.";
+    }
+
+    String prompt = """
+            Taking into account only the following articles and the presented context, provide a specific 
+            logging suggestion that can be used for the application, including which events should be logged and how to avoid exposing sensitive data.
+            
+            Articles:
+            %s
+            
+            Context: %s
+
+            """.formatted(articles_String, query);
+
+    return chatLanguageModel.generate(prompt);
+}
 }
