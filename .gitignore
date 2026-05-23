@@ -1,0 +1,29 @@
+# Next.js
+frontend/.next/
+frontend/out/
+frontend/node_modules/
+
+# Maven / Spring Boot
+backend/target/
+backend/*.jar
+backend/*.war
+
+# Environment
+.env
+.env.local
+.env*.local
+*.env
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.class
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
