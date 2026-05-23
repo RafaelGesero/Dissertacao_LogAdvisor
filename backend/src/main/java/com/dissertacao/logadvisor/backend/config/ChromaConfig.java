@@ -15,10 +15,10 @@ import dev.langchain4j.store.embedding.chroma.ChromaEmbeddingStore;
 @Configuration
 public class ChromaConfig {
 
-    @Value("${groq.api-key}")
+    @Value("${app.groq.api-key}")
     private String groqApiKey;
 
-    @Value("${groq.model}")
+    @Value("${app.groq.model}")
     private String groqModel;
 
     @Value("${chroma.url}")
