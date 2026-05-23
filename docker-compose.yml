@@ -12,7 +12,7 @@ services:
       - pgdata:/var/lib/postgresql/data
 
   chroma:
-    image: chromadb/chroma:latest
+    image: chromadb/chroma:0.4.24
     ports:
       - "8001:8000"
 

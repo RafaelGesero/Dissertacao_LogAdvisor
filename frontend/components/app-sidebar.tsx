@@ -4,15 +4,10 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
   LayoutDashboard,
-  Code2,
-  FileText,
-  ShieldCheck,
   Store,
   Settings,
-  Search,
-  BookOpen,
   Shield,
-  Lock,
+  History,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -20,24 +15,9 @@ const navigation = [
   {
     title: "Overview",
     items: [
-      { name: "Dashboard", href: "/", icon: LayoutDashboard },
-      { name: "Analyzer", href: "/analyzer", icon: Code2 },
-    ],
-  },
-  {
-    title: "Analysis",
-    items: [
-      { name: "Security Events", href: "/security-events", icon: ShieldCheck },
-      { name: "Log Suggestions", href: "/log-suggestions", icon: FileText },
-      { name: "Data Protection", href: "/data-protection", icon: Lock },
-    ],
-  },
-  {
-    title: "Resources",
-    items: [
-      { name: "Marketplace", href: "/marketplace", icon: Store },
-      { name: "Documentation", href: "/documentation", icon: BookOpen },
-      { name: "Research", href: "/research", icon: Search },
+      { name: "Start", href: "/", icon: LayoutDashboard },
+      { name: "History", href: "/history", icon: History },
+      { name: "Community", href: "/marketplace", icon: Store },
     ],
   },
 ]
@@ -51,22 +31,7 @@ export function AppSidebar() {
         {/* Logo */}
         <div className="flex h-16 items-center gap-2 border-b border-border px-6">
           <Shield className="h-6 w-6 text-accent" />
-          <span className="text-lg font-semibold text-foreground">LogSecure</span>
-        </div>
-
-        {/* Search */}
-        <div className="px-4 py-4">
-          <div className="flex items-center gap-2 rounded-md border border-border bg-input px-3 py-2">
-            <Search className="h-4 w-4 text-muted-foreground" />
-            <input
-              type="text"
-              placeholder="Search..."
-              className="w-full bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
-            />
-            <kbd className="hidden rounded border border-border bg-muted px-1.5 py-0.5 text-xs text-muted-foreground sm:inline-block">
-              ⌘K
-            </kbd>
-          </div>
+          <span className="text-lg font-semibold text-foreground">LogAdvisor</span>
         </div>
 
         {/* Navigation */}

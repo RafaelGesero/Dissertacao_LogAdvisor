@@ -1,15 +1,19 @@
 package com.dissertacao.logadvisor.backend.service;
 
-import com.dissertacao.logadvisor.backend.model.ArticleResult;
-import com.google.gson.*;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestClient;
-
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClient;
+
+import com.dissertacao.logadvisor.backend.model.ArticleResult;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 
 @Service
 public class SerpApiService {
@@ -19,12 +23,14 @@ public class SerpApiService {
 
     private final RestClient restClient = RestClient.create();
 
+    //ALterar o numero de artigos pesquisados &num=20 é o maximo por paginação, para conseguir fazer mais é necessario acrescentar %start=
+    //em principio nao é necessário, 20 deve chegar
     public List<ArticleResult> searchArticles(String query) {
         String url = "https://serpapi.com/search.json"
                 + "?engine=google_scholar"
                 + "&q=" + URLEncoder.encode(query, StandardCharsets.UTF_8)
                 + "&api_key=" + apiKey
-                + "&num=10";
+                + "&num=20";
 
         String response = restClient.get()
                 .uri(url)
