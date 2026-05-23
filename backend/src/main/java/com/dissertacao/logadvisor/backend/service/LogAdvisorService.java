@@ -6,6 +6,11 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 
 import com.dissertacao.logadvisor.backend.model.ArticleResult;
+import com.dissertacao.logadvisor.backend.model.LogAdviceResponse;
+import com.google.gson.Gson;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 
 import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.model.chat.ChatLanguageModel;
@@ -21,48 +26,130 @@ public class LogAdvisorService {
     private final KnowledgeBaseService knowledgeBaseService;
     private final SerpApiService serpApiService;
     private final ChatLanguageModel chatLanguageModel;
+    private final Gson gson = new Gson();
 
-    //ALTERAR ALGUMAS COISAS NA PARTE DOS ARTIGOS 
-   public String getLoggingAdvice(String query) {
-    List<EmbeddingMatch<TextSegment>> matches = knowledgeBaseService.search(query, 5);
-    String articles_String;
+    public LogAdviceResponse getLoggingAdvice(String query) {
+        String searchQuery = extractSearchKeywords(query);
+        log.info("Keywords extraídos para pesquisa: {}", searchQuery);
 
-    if (!matches.isEmpty()) {
-        log.info("Foram encontrados os estes artigos na base de conhecimento {}", matches.size());
-        articles_String = matches.stream()
-                .map(match -> match.embedded().text())
-                .filter(text -> text != null && !text.isBlank())
-                .collect(Collectors.joining("\n\n---\n\n"));
-    } else {
-        log.info("Não foram encontrados nenhuns artigos na base, pesquisar com o SerpAPI");
-        List<ArticleResult> articles = serpApiService.searchArticles(query);
+        List<EmbeddingMatch<TextSegment>> matches = knowledgeBaseService.search(searchQuery, 5);
+        String articlesString;
 
-        if (!articles.isEmpty()) {
-            knowledgeBaseService.saveArticles(articles);
-            log.info("Guardar os artigos {} na base de conhecimento", articles.size());
+        if (!matches.isEmpty()) {
+            log.info("Encontrados {} artigos na base de conhecimento", matches.size());
+            articlesString = matches.stream()
+                    .map(match -> match.embedded().text())
+                    .filter(text -> text != null && !text.isBlank())
+                    .collect(Collectors.joining("\n\n---\n\n"));
+        } else {
+            log.info("Nenhum artigo na base, a pesquisar via SerpAPI...");
+            List<ArticleResult> articles = serpApiService.searchArticles(searchQuery);
+
+            if (!articles.isEmpty()) {
+                knowledgeBaseService.saveArticles(articles);
+                log.info("Guardados {} artigos na base de conhecimento", articles.size());
+            }
+
+            articlesString = articles.stream()
+                    .map(a -> "Title: " + a.getTitle() + "\nSnippet: " + a.getSnippet())
+                    .filter(text -> text != null && !text.isBlank())
+                    .collect(Collectors.joining("\n\n---\n\n"));
         }
 
-        articles_String = articles.stream()
-                .map(a -> "Title: " + a.getTitle() + "\nSnippet: " + a.getSnippet())
-                .filter(text -> text != null && !text.isBlank())
-                .collect(Collectors.joining("\n\n---\n\n"));
+        if (articlesString.isBlank()) {
+            articlesString = "Nenhum artigo encontrado. Usa o teu conhecimento geral sobre logging seguro.";
+        }
+
+        String prompt = """
+                Reply ONLY with a valid JSON object. Do not include any text before or after it, no markdown, no explanations.
+                The JSON must have exactly these two fields:
+
+                {
+                  "logStructure": "...",
+                  "storageTips": "..."
+                }
+
+                Field definitions:
+
+                IMPORTANT: both field values MUST be plain strings. Use \n for line breaks. \
+                Do NOT use nested JSON objects or arrays as field values.
+
+                "logStructure": Based EXCLUSIVELY on the academic articles below, define the concrete log structure \
+                for the described application. Include:
+                - Mandatory fields in each log entry (e.g. timestamp, level, userId, action, result, ip)
+                - Log levels to use (INFO, WARN, ERROR) and when to apply each
+                - Specific events that must be logged (e.g. login, access to sensitive data, errors)
+                - A concrete example of a log entry in structured JSON format
+
+                "storageTips": Tips on how to store these logs securely and in compliance with regulations. Include:
+                - What must NEVER appear in logs (personal data, credentials, payment data, etc.)
+                - GDPR compliance: data minimisation, anonymisation, right to erasure
+                - Recommended retention periods for each log type presented in logStructure
+                - Recommendations on encryption at rest and in transit, and access control for logs
+
+                Academic articles:
+                %s
+
+                Application described by the user: %s
+                """.formatted(articlesString, query);
+
+        String raw = chatLanguageModel.generate(prompt);
+        log.debug("Resposta raw do LLM: {}", raw);
+        return parseResponse(raw, query);
     }
 
-    if (articles_String == null || articles_String.isBlank()) {
-        articles_String = "Não foram encontrados artigos específicos. Responde com base no teu conhecimento geral.";
+    private String extractSearchKeywords(String query) {
+        String keywordPrompt = """
+                Extract 3 to 5 concise search keywords from the following application description.
+                These keywords will be used to search academic articles about secure logging practices.
+                Reply ONLY with the keywords separated by spaces, nothing else. No punctuation, no explanations.
+
+                Description: %s
+                """.formatted(query);
+        try {
+            return chatLanguageModel.generate(keywordPrompt).trim();
+        } catch (Exception e) {
+            log.warn("Falha ao extrair keywords, usando query original: {}", e.getMessage());
+            return query;
+        }
     }
 
-    String prompt = """
-            Taking into account only the following articles and the presented context, provide a specific 
-            logging suggestion that can be used for the application, including which events should be logged and how to avoid exposing sensitive data.
-            
-            Articles:
-            %s
-            
-            Context: %s
+    private LogAdviceResponse parseResponse(String raw, String query) {
+        String json = raw.trim()
+                .replaceAll("(?s)```json\\s*", "")
+                .replaceAll("(?s)```\\s*", "")
+                .trim();
 
-            """.formatted(articles_String, query);
+        int start = json.indexOf('{');
+        int end = json.lastIndexOf('}');
+        if (start != -1 && end != -1 && end > start) {
+            json = json.substring(start, end + 1);
+        }
 
-    return chatLanguageModel.generate(prompt);
-}
+        try {
+            JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
+            String logStructure = extractStringField(obj, "logStructure");
+            String storageTips = extractStringField(obj, "storageTips");
+            if (logStructure != null) {
+                LogAdviceResponse response = new LogAdviceResponse();
+                response.setLogStructure(logStructure);
+                response.setStorageTips(storageTips != null ? storageTips : "");
+                return response;
+            }
+        } catch (Exception e) {
+            log.error("Erro ao parsear JSON do LLM para query '{}': {}", query, e.getMessage());
+        }
+
+        LogAdviceResponse fallback = new LogAdviceResponse();
+        fallback.setLogStructure(raw);
+        fallback.setStorageTips("Não foi possível gerar as dicas de armazenamento separadamente.");
+        return fallback;
+    }
+
+    private String extractStringField(JsonObject obj, String field) {
+        if (!obj.has(field)) return null;
+        JsonElement el = obj.get(field);
+        // LLM sometimes returns nested objects instead of a plain string
+        return el.isJsonPrimitive() ? el.getAsString() : gson.toJson(el);
+    }
 }

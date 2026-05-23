@@ -7,7 +7,7 @@ const _geist = Geist({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: 'LogSecure - Security Logging Analyzer',
+  title: 'LogAdvisor',
   description: 'Analyze your applications and get security logging recommendations based on industry standards',
   generator: 'v0.app',
   icons: {

@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.dissertacao.logadvisor.backend.model.ArticleResult;
+import com.dissertacao.logadvisor.backend.model.LogAdviceResponse;
 import com.dissertacao.logadvisor.backend.service.KnowledgeBaseService;
 import com.dissertacao.logadvisor.backend.service.LogAdvisorService;
 import com.dissertacao.logadvisor.backend.service.SerpApiService;
@@ -16,7 +17,7 @@ import com.dissertacao.logadvisor.backend.service.SerpApiService;
 import lombok.RequiredArgsConstructor;
 
 @RestController
-@RequestMapping("/api/search")
+@RequestMapping("/log")
 @RequiredArgsConstructor
 public class SearchController {
 
@@ -24,17 +25,17 @@ public class SearchController {
     private final LogAdvisorService logAdvisorService;
     private final KnowledgeBaseService knowledgeBaseService;
 
-    @GetMapping("/articles")
+    @GetMapping("/searchArticles")
     public ResponseEntity<List<ArticleResult>> searchArticles(@RequestParam String query) {
         return ResponseEntity.ok(serpApiService.searchArticles(query));
     }
 
     @GetMapping("/advice")
-    public ResponseEntity<String> getAdvice(@RequestParam String query) {
+    public ResponseEntity<LogAdviceResponse> getAdvice(@RequestParam String query) {
         return ResponseEntity.ok(logAdvisorService.getLoggingAdvice(query));
     }
 
-    @GetMapping("/knowledge-base")
+    @GetMapping("/articlesKB")
     public ResponseEntity<List<ArticleResult>> getAllKnowledgeBaseArticles() {
         return ResponseEntity.ok(knowledgeBaseService.getAllArticles());
     }
