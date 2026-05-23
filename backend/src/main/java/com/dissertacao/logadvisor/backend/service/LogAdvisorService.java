@@ -29,27 +29,39 @@ public class LogAdvisorService {
     private final Gson gson = new Gson();
 
     public LogAdviceResponse getLoggingAdvice(String query) {
-        String searchQuery = extractSearchKeywords(query);
-        log.info("Keywords extraídos para pesquisa: {}", searchQuery);
+        String keywords = extractSearchKeywords(query);
+        log.info("Keywords extraídos para pesquisa: {}", keywords);
 
-        List<EmbeddingMatch<TextSegment>> matches = knowledgeBaseService.search(searchQuery, 5);
+        List<EmbeddingMatch<TextSegment>> matches = knowledgeBaseService.search(keywords, 5);
         String articlesString;
+        List<ArticleResult> sources;
 
         if (!matches.isEmpty()) {
             log.info("Encontrados {} artigos na base de conhecimento", matches.size());
+            sources = matches.stream()
+                    .map(match -> {
+                        var meta = match.embedded().metadata();
+                        ArticleResult ar = new ArticleResult();
+                        ar.setTitle(meta.getString("title"));
+                        ar.setLink(meta.getString("link"));
+                        ar.setPublication(meta.getString("publication"));
+                        return ar;
+                    })
+                    .collect(Collectors.toList());
             articlesString = matches.stream()
                     .map(match -> match.embedded().text())
                     .filter(text -> text != null && !text.isBlank())
                     .collect(Collectors.joining("\n\n---\n\n"));
         } else {
             log.info("Nenhum artigo na base, a pesquisar via SerpAPI...");
-            List<ArticleResult> articles = serpApiService.searchArticles(searchQuery);
+            List<ArticleResult> articles = serpApiService.searchArticles(keywords);
 
             if (!articles.isEmpty()) {
                 knowledgeBaseService.saveArticles(articles);
                 log.info("Guardados {} artigos na base de conhecimento", articles.size());
             }
 
+            sources = articles;
             articlesString = articles.stream()
                     .map(a -> "Title: " + a.getTitle() + "\nSnippet: " + a.getSnippet())
                     .filter(text -> text != null && !text.isBlank())
@@ -58,6 +70,7 @@ public class LogAdvisorService {
 
         if (articlesString.isBlank()) {
             articlesString = "Nenhum artigo encontrado. Usa o teu conhecimento geral sobre logging seguro.";
+            sources = List.of();
         }
 
         String prompt = """
@@ -95,7 +108,10 @@ public class LogAdvisorService {
 
         String raw = chatLanguageModel.generate(prompt);
         log.debug("Resposta raw do LLM: {}", raw);
-        return parseResponse(raw, query);
+        LogAdviceResponse response = parseResponse(raw, query);
+        response.setSources(sources);
+        response.setKeywords(keywords);
+        return response;
     }
 
     private String extractSearchKeywords(String query) {

@@ -18,19 +18,45 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
   MessageSquare,
   ListChecks,
   Sparkles,
   Code2,
   Clock,
   ChevronRight,
-  CheckCircle,
   AlertTriangle,
   Loader2,
   FileText,
   ShieldCheck,
-  XCircle,
+  BookOpen,
+  ExternalLink,
 } from "lucide-react"
+
+type ArticleSource = {
+  title: string
+  link: string
+  publication: string
+}
+
+type AnalysisResult = {
+  logStructure: string
+  storageTips: string
+  sources: ArticleSource[]
+  keywords: string
+}
+
+type SessionEntry = {
+  id: number
+  keywords: string
+  date: string
+  result: AnalysisResult
+}
 
 const appTypes = [
   { id: "web", label: "Web Application" },
@@ -66,10 +92,6 @@ const securityStandards = [
   { id: "soc2", label: "SOC 2" },
 ]
 
-const historyItems = [
- 
-]
-
 export default function HomePage() {
   const [description, setDescription] = useState("")
   const [appType, setAppType] = useState("")
@@ -77,8 +99,10 @@ export default function HomePage() {
   const [selectedDataTypes, setSelectedDataTypes] = useState<string[]>([])
   const [selectedStandards, setSelectedStandards] = useState<string[]>([])
   const [isLoading, setIsLoading] = useState(false)
-  const [result, setResult] = useState<{ logStructure: string; storageTips: string } | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [activeResult, setActiveResult] = useState<AnalysisResult | null>(null)
+  const [resultOpen, setResultOpen] = useState(false)
+  const [sessionHistory, setSessionHistory] = useState<SessionEntry[]>([])
 
   const toggleDataType = (id: string) =>
     setSelectedDataTypes((prev) =>
@@ -93,17 +117,33 @@ export default function HomePage() {
   const handleAnalyze = async (query: string) => {
     if (!query.trim()) return
     setIsLoading(true)
-    setResult(null)
     setError(null)
     try {
       const res = await fetch(
         `http://localhost:8080/log/advice?query=${encodeURIComponent(query)}`
       )
       if (!res.ok) throw new Error(`Server error: ${res.status}`)
-      const data = await res.json()
-      setResult(data)
+      const data: AnalysisResult = await res.json()
+
+      const entry: SessionEntry = {
+        id: Date.now(),
+        keywords: data.keywords || query,
+        date: new Date().toLocaleString("pt-PT", {
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+        result: data,
+      }
+      setSessionHistory((prev) => [entry, ...prev])
+      setActiveResult(data)
+      setResultOpen(true)
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to get analysis. Is the backend running?")
+      setError(
+        e instanceof Error ? e.message : "Failed to get analysis. Is the backend running?"
+      )
     } finally {
       setIsLoading(false)
     }
@@ -118,6 +158,11 @@ export default function HomePage() {
     ]
       .filter(Boolean)
       .join(". ")
+
+  const openEntry = (entry: SessionEntry) => {
+    setActiveResult(entry.result)
+    setResultOpen(true)
+  }
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -134,7 +179,6 @@ export default function HomePage() {
           <Card className="border-border bg-card">
             <CardContent className="p-0">
               <Tabs defaultValue="prompt" className="w-full">
-                {/* Tab toggle */}
                 <div className="border-b border-border px-4 pt-4">
                   <TabsList className="bg-muted h-9">
                     <TabsTrigger value="prompt" className="gap-2 text-sm">
@@ -163,6 +207,7 @@ export default function HomePage() {
                         <span>{"Powered by LangChain4j + Groq"}</span>
                       </div>
                       <Button
+                        suppressHydrationWarning
                         className="bg-accent text-accent-foreground hover:bg-accent/90 gap-2"
                         disabled={!description.trim() || isLoading}
                         onClick={() => handleAnalyze(description)}
@@ -181,7 +226,6 @@ export default function HomePage() {
                 {/* Questionnaire */}
                 <TabsContent value="questionnaire" className="m-0">
                   <div className="p-4 space-y-5">
-                    {/* App type + Framework */}
                     <div className="grid gap-4 sm:grid-cols-2">
                       <div className="space-y-1.5">
                         <Label className="text-sm text-foreground">Application Type</Label>
@@ -216,7 +260,6 @@ export default function HomePage() {
                       </div>
                     </div>
 
-                    {/* Data types */}
                     <div className="space-y-2">
                       <Label className="text-sm text-foreground">Data Types Handled</Label>
                       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -238,7 +281,6 @@ export default function HomePage() {
                       </div>
                     </div>
 
-                    {/* Standards */}
                     <div className="space-y-2">
                       <Label className="text-sm text-foreground">Compliance Requirements</Label>
                       <div className="flex flex-wrap gap-2">
@@ -261,6 +303,7 @@ export default function HomePage() {
 
                     <div className="flex justify-end">
                       <Button
+                        suppressHydrationWarning
                         className="bg-accent text-accent-foreground hover:bg-accent/90 gap-2"
                         disabled={!appType || isLoading}
                         onClick={() => handleAnalyze(buildQuestionnaireQuery())}
@@ -283,104 +326,134 @@ export default function HomePage() {
           {error && (
             <Card className="border-red-800/50 bg-red-950/20">
               <CardContent className="p-4 flex items-center gap-3">
-                <XCircle className="h-4 w-4 text-red-400 shrink-0" />
+                <AlertTriangle className="h-4 w-4 text-red-400 shrink-0" />
                 <p className="text-sm text-red-400">{error}</p>
               </CardContent>
             </Card>
           )}
 
-          {/* Results */}
-          {result && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-                  Analysis Results
-                </h2>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-xs text-muted-foreground hover:text-foreground"
-                  onClick={() => setResult(null)}
-                >
-                  Clear
-                </Button>
+          {/* Session history */}
+          {sessionHistory.length > 0 && (
+            <div className="space-y-3">
+              <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                Recent Analyses
+              </h2>
+              <div className="space-y-2">
+                {sessionHistory.map((entry) => (
+                  <Card
+                    key={entry.id}
+                    className="border-border bg-card hover:bg-muted/40 transition-colors cursor-pointer"
+                    onClick={() => openEntry(entry)}
+                  >
+                    <CardContent className="flex items-center justify-between p-4">
+                      <div className="flex items-center gap-4 min-w-0">
+                        <div className="rounded-md bg-accent/10 p-2 shrink-0">
+                          <Code2 className="h-4 w-4 text-accent" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-foreground truncate">
+                            {entry.keywords}
+                          </p>
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
+                            <Clock className="h-3 w-3" />
+                            {entry.date}
+                          </div>
+                        </div>
+                      </div>
+                      <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0 ml-4" />
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
-
-              <Card className="border-border bg-card">
-                <CardContent className="p-4 space-y-3">
-                  <div className="flex items-center gap-2">
-                    <FileText className="h-4 w-4 text-accent" />
-                    <p className="text-sm font-semibold text-foreground">Log Structure</p>
-                  </div>
-                  <pre className="text-xs text-foreground bg-muted/50 rounded-md p-3 border border-border whitespace-pre-wrap font-mono leading-relaxed">
-                    {result.logStructure}
-                  </pre>
-                </CardContent>
-              </Card>
-
-              <Card className="border-border bg-card">
-                <CardContent className="p-4 space-y-3">
-                  <div className="flex items-center gap-2">
-                    <ShieldCheck className="h-4 w-4 text-accent" />
-                    <p className="text-sm font-semibold text-foreground">Storage &amp; Compliance Tips</p>
-                  </div>
-                  <p className="text-sm text-foreground bg-muted/50 rounded-md p-3 border border-border leading-relaxed">
-                    {result.storageTips}
-                  </p>
-                </CardContent>
-              </Card>
             </div>
           )}
-
-          {/* History */}
-          <div className="space-y-3">
-            <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-              Recent Analyses
-            </h2>
-            <div className="space-y-2">
-              {historyItems.map((item) => (
-                <Card
-                  key={item.id}
-                  className="border-border bg-card hover:bg-muted/40 transition-colors cursor-pointer"
-                >
-                  <CardContent className="flex items-center justify-between p-4">
-                    <div className="flex items-center gap-4">
-                      <div className="rounded-md bg-accent/10 p-2">
-                        <Code2 className="h-4 w-4 text-accent" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-foreground">{item.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {item.type} · {item.framework}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-4">
-                      {item.issues > 0 ? (
-                        <div className="flex items-center gap-1 text-xs text-orange-400">
-                          <AlertTriangle className="h-3.5 w-3.5" />
-                          {item.issues} recommendations
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-1 text-xs text-green-400">
-                          <CheckCircle className="h-3.5 w-3.5" />
-                          No issues
-                        </div>
-                      )}
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground w-20 justify-end">
-                        <Clock className="h-3 w-3" />
-                        {item.date}
-                      </div>
-                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </div>
         </main>
       </div>
+
+      {/* Results dialog */}
+      <Dialog open={resultOpen} onOpenChange={setResultOpen}>
+        <DialogContent
+          className="max-w-2xl bg-card border-border text-foreground flex flex-col gap-0 p-0"
+          style={{ maxHeight: "85vh" }}
+        >
+          <DialogHeader className="px-6 pt-6 pb-4 border-b border-border shrink-0">
+            <DialogTitle className="flex items-center gap-2 text-foreground">
+              <Code2 className="h-5 w-5 text-accent" />
+              {activeResult?.keywords || "Analysis Results"}
+            </DialogTitle>
+          </DialogHeader>
+
+          {activeResult && (
+            <Tabs defaultValue="structure" className="flex flex-col flex-1 overflow-hidden">
+              <div className="px-6 pt-4 shrink-0">
+                <TabsList className="bg-muted">
+                  <TabsTrigger value="structure" className="gap-1.5 text-sm">
+                    <FileText className="h-3.5 w-3.5" />
+                    Log Structure
+                  </TabsTrigger>
+                  <TabsTrigger value="security" className="gap-1.5 text-sm">
+                    <ShieldCheck className="h-3.5 w-3.5" />
+                    Security &amp; Data
+                  </TabsTrigger>
+                  <TabsTrigger value="sources" className="gap-1.5 text-sm">
+                    <BookOpen className="h-3.5 w-3.5" />
+                    Sources
+                  </TabsTrigger>
+                </TabsList>
+              </div>
+
+              <div className="overflow-y-auto flex-1 px-6 py-4">
+                <TabsContent value="structure" className="mt-0">
+                  <pre className="text-xs text-foreground bg-muted/50 rounded-md p-4 border border-border whitespace-pre-wrap font-mono leading-relaxed">
+                    {activeResult.logStructure}
+                  </pre>
+                </TabsContent>
+
+                <TabsContent value="security" className="mt-0">
+                  <p className="text-sm text-foreground bg-muted/50 rounded-md p-4 border border-border leading-relaxed whitespace-pre-line">
+                    {activeResult.storageTips}
+                  </p>
+                </TabsContent>
+
+                <TabsContent value="sources" className="mt-0">
+                  {activeResult.sources?.length > 0 ? (
+                    <div className="space-y-3">
+                      {activeResult.sources.map((source, i) => (
+                        <div
+                          key={i}
+                          className="rounded-md bg-muted/50 border border-border p-3 space-y-1.5"
+                        >
+                          <p className="text-sm font-medium text-foreground leading-snug">
+                            {source.title || "Untitled"}
+                          </p>
+                          {source.publication && (
+                            <p className="text-xs text-muted-foreground">{source.publication}</p>
+                          )}
+                          {source.link && (
+                            <a
+                              href={source.link}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-1 text-xs text-accent hover:underline w-fit"
+                            >
+                              <ExternalLink className="h-3 w-3" />
+                              View article
+                            </a>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground text-center py-10">
+                      No sources available for this analysis.
+                    </p>
+                  )}
+                </TabsContent>
+              </div>
+            </Tabs>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
