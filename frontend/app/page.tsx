@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { AppSidebar } from "@/components/app-sidebar"
 import { AppHeader } from "@/components/app-header"
 import { Card, CardContent } from "@/components/ui/card"
@@ -44,11 +44,46 @@ type ArticleSource = {
   publication: string
 }
 
+type LogSection = {
+  technology: string
+  content: string
+}
+
 type AnalysisResult = {
-  logStructure: string
+  logStructure: LogSection[]
   storageTips: string
   sources: ArticleSource[]
   keywords: string
+}
+
+const NO_INFO = "Não foi encontrada informação relevante sobre o tema em questão"
+
+const CONTENT_SECTIONS = [
+  { key: "Mandatory Fields", label: "Mandatory Fields", Icon: ListChecks },
+  { key: "Log Levels", label: "Log Levels", Icon: FileText },
+  { key: "Security Events", label: "Security Events", Icon: ShieldCheck },
+  { key: "Example", label: "Example", Icon: Code2 },
+]
+
+function parseContent(content: string) {
+  const blocks: { label: string; Icon: React.ElementType; text: string; isCode: boolean }[] = []
+  for (let i = 0; i < CONTENT_SECTIONS.length; i++) {
+    const { key, label, Icon } = CONTENT_SECTIONS[i]
+    const marker = `${key}:`
+    const start = content.indexOf(marker)
+    if (start === -1) continue
+    const after = content.slice(start + marker.length)
+    let end = after.length
+    for (let j = i + 1; j < CONTENT_SECTIONS.length; j++) {
+      const idx = after.indexOf(`${CONTENT_SECTIONS[j].key}:`)
+      if (idx !== -1 && idx < end) end = idx
+    }
+    blocks.push({ label, Icon, text: after.slice(0, end).trim(), isCode: key === "Example" })
+  }
+  if (blocks.length === 0) {
+    blocks.push({ label: "", Icon: FileText, text: content, isCode: false })
+  }
+  return blocks
 }
 
 type SessionEntry = {
@@ -103,6 +138,27 @@ export default function HomePage() {
   const [activeResult, setActiveResult] = useState<AnalysisResult | null>(null)
   const [resultOpen, setResultOpen] = useState(false)
   const [sessionHistory, setSessionHistory] = useState<SessionEntry[]>([])
+
+  useEffect(() => {
+    fetch("http://localhost:8080/log/history")
+      .then((r) => r.ok ? r.json() : Promise.reject(r.status))
+      .then((entries: { id: number; keywords: string; createdAt: string; logStructure: LogSection[]; storageTips: string; sources: ArticleSource[] }[]) => {
+        setSessionHistory(
+          entries.map((e) => ({
+            id: e.id,
+            keywords: e.keywords,
+            date: e.createdAt,
+            result: {
+              logStructure: e.logStructure,
+              storageTips: e.storageTips,
+              sources: e.sources,
+              keywords: e.keywords,
+            },
+          }))
+        )
+      })
+      .catch(() => {})
+  }, [])
 
   const toggleDataType = (id: string) =>
     setSelectedDataTypes((prev) =>
@@ -404,9 +460,49 @@ export default function HomePage() {
 
               <div className="overflow-y-auto flex-1 px-6 py-4">
                 <TabsContent value="structure" className="mt-0">
-                  <pre className="text-xs text-foreground bg-muted/50 rounded-md p-4 border border-border whitespace-pre-wrap font-mono leading-relaxed">
-                    {activeResult.logStructure}
-                  </pre>
+                  <Tabs defaultValue={activeResult.logStructure[0]?.technology ?? ""}>
+                    <TabsList className="bg-muted flex-wrap h-auto gap-1 mb-4">
+                      {activeResult.logStructure.map((s) => (
+                        <TabsTrigger key={s.technology} value={s.technology} className="text-xs">
+                          {s.technology}
+                        </TabsTrigger>
+                      ))}
+                    </TabsList>
+                    {activeResult.logStructure.map((s) => (
+                      <TabsContent key={s.technology} value={s.technology} className="mt-0">
+                        {s.content === NO_INFO ? (
+                          <p className="text-sm text-muted-foreground italic py-6 text-center">{s.content}</p>
+                        ) : (
+                          <div className="space-y-3">
+                            {parseContent(s.content).map((block, i) => {
+                              const Icon = block.Icon
+                              return (
+                                <div key={i} className="rounded-md border border-border overflow-hidden">
+                                  {block.label && (
+                                    <div className="flex items-center gap-2 bg-muted/70 border-b border-border px-3 py-2">
+                                      <Icon className="h-3.5 w-3.5 text-accent" />
+                                      <span className="text-xs font-semibold text-foreground uppercase tracking-wide">
+                                        {block.label}
+                                      </span>
+                                    </div>
+                                  )}
+                                  {block.isCode ? (
+                                    <pre className="text-xs font-mono p-3 whitespace-pre-wrap bg-zinc-900 text-green-300 leading-relaxed">
+                                      {block.text}
+                                    </pre>
+                                  ) : (
+                                    <p className="text-sm text-foreground p-3 whitespace-pre-line leading-relaxed">
+                                      {block.text}
+                                    </p>
+                                  )}
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )}
+                      </TabsContent>
+                    ))}
+                  </Tabs>
                 </TabsContent>
 
                 <TabsContent value="security" className="mt-0">

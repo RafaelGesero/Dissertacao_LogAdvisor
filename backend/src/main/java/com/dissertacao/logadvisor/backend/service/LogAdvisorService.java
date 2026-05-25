@@ -1,5 +1,6 @@
 package com.dissertacao.logadvisor.backend.service;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -7,6 +8,7 @@ import org.springframework.stereotype.Service;
 
 import com.dissertacao.logadvisor.backend.model.ArticleResult;
 import com.dissertacao.logadvisor.backend.model.LogAdviceResponse;
+import com.dissertacao.logadvisor.backend.model.LogSection;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -22,6 +24,9 @@ import lombok.extern.slf4j.Slf4j;
 @Service
 @RequiredArgsConstructor
 public class LogAdvisorService {
+
+    private static final String MANDATORY_SEARCH_TERMS = "security logging data protection information security";
+    private static final String NO_INFO_MESSAGE = "Não foi encontrada informação relevante sobre o tema em questão";
 
     private final KnowledgeBaseService knowledgeBaseService;
     private final SerpApiService serpApiService;
@@ -69,7 +74,7 @@ public class LogAdvisorService {
         }
 
         if (articlesString.isBlank()) {
-            articlesString = "Nenhum artigo encontrado. Usa o teu conhecimento geral sobre logging seguro.";
+            articlesString = "No articles found. Use general knowledge about secure logging.";
             sources = List.of();
         }
 
@@ -78,33 +83,40 @@ public class LogAdvisorService {
                 The JSON must have exactly these two fields:
 
                 {
-                  "logStructure": "...",
+                  "logStructure": [
+                    {"technology": "TechName", "content": "..."},
+                    ...
+                  ],
                   "storageTips": "..."
                 }
 
-                Field definitions:
+                IMPORTANT: "storageTips" and each "content" value MUST be plain strings. \
+                Use \\n for line breaks inside strings. Do NOT use nested JSON objects inside field values.
 
-                IMPORTANT: both field values MUST be plain strings. Use \n for line breaks. \
-                Do NOT use nested JSON objects or arrays as field values.
-
-                "logStructure": Based EXCLUSIVELY on the academic articles below, define the concrete log structure \
-                for the described application. Include:
-                - Mandatory fields in each log entry (e.g. timestamp, level, userId, action, result, ip)
-                - Log levels to use (INFO, WARN, ERROR) and when to apply each
-                - Specific events that must be logged (e.g. login, access to sensitive data, errors)
-                - A concrete example of a log entry in structured JSON format
+                "logStructure": An ARRAY of sections, one per technology/language/framework/database \
+                identified in the user's description. For each section:
+                - "technology": the exact name of the technology (e.g. "Java", "Spring Boot", "SQL", "React", "HTML")
+                - "content": A structured string with EXACTLY these 4 labeled sections in this order, \
+                  using \\n for line breaks, based EXCLUSIVELY on the academic articles. \
+                  Use this exact format (replace placeholders with real content):\
+                  Mandatory Fields: <comma-separated list of required log fields>\\n\
+                  Log Levels:\\n- INFO: <when to use INFO>\\n- WARN: <when to use WARN>\\n- ERROR: <when to use ERROR>\\n\
+                  Security Events: <comma-separated list of security-specific events to log>\\n\
+                  Example:\\n<compact single-line JSON log entry for this technology>\
+                  If the academic articles contain NO relevant information for that specific technology, \
+                  set content to exactly: "%s"
 
                 "storageTips": Tips on how to store these logs securely and in compliance with regulations. Include:
                 - What must NEVER appear in logs (personal data, credentials, payment data, etc.)
                 - GDPR compliance: data minimisation, anonymisation, right to erasure
-                - Recommended retention periods for each log type presented in logStructure
+                - Recommended retention periods for each log type
                 - Recommendations on encryption at rest and in transit, and access control for logs
 
                 Academic articles:
                 %s
 
                 Application described by the user: %s
-                """.formatted(articlesString, query);
+                """.formatted(NO_INFO_MESSAGE, articlesString, query);
 
         String raw = chatLanguageModel.generate(prompt);
         log.debug("Resposta raw do LLM: {}", raw);
@@ -116,17 +128,18 @@ public class LogAdvisorService {
 
     private String extractSearchKeywords(String query) {
         String keywordPrompt = """
-                Extract 3 to 5 concise search keywords from the following application description.
-                These keywords will be used to search academic articles about secure logging practices.
+                Extract 3 to 5 concise technical keywords (languages, frameworks, databases, protocols) \
+                from the following application description.
                 Reply ONLY with the keywords separated by spaces, nothing else. No punctuation, no explanations.
 
                 Description: %s
                 """.formatted(query);
         try {
-            return chatLanguageModel.generate(keywordPrompt).trim();
+            String extracted = chatLanguageModel.generate(keywordPrompt).trim();
+            return extracted + " " + MANDATORY_SEARCH_TERMS;
         } catch (Exception e) {
             log.warn("Falha ao extrair keywords, usando query original: {}", e.getMessage());
-            return query;
+            return query + " " + MANDATORY_SEARCH_TERMS;
         }
     }
 
@@ -144,11 +157,11 @@ public class LogAdvisorService {
 
         try {
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
-            String logStructure = extractStringField(obj, "logStructure");
+            List<LogSection> sections = parseLogSections(obj);
             String storageTips = extractStringField(obj, "storageTips");
-            if (logStructure != null) {
+            if (sections != null && !sections.isEmpty()) {
                 LogAdviceResponse response = new LogAdviceResponse();
-                response.setLogStructure(logStructure);
+                response.setLogStructure(sections);
                 response.setStorageTips(storageTips != null ? storageTips : "");
                 return response;
             }
@@ -157,15 +170,39 @@ public class LogAdvisorService {
         }
 
         LogAdviceResponse fallback = new LogAdviceResponse();
-        fallback.setLogStructure(raw);
+        fallback.setLogStructure(List.of(new LogSection("General", raw)));
         fallback.setStorageTips("Não foi possível gerar as dicas de armazenamento separadamente.");
         return fallback;
+    }
+
+    private List<LogSection> parseLogSections(JsonObject obj) {
+        if (!obj.has("logStructure")) return null;
+        JsonElement el = obj.get("logStructure");
+        List<LogSection> sections = new ArrayList<>();
+
+        if (el.isJsonArray()) {
+            for (JsonElement item : el.getAsJsonArray()) {
+                if (item.isJsonObject()) {
+                    JsonObject sectionObj = item.getAsJsonObject();
+                    String technology = extractStringField(sectionObj, "technology");
+                    String content = extractStringField(sectionObj, "content");
+                    if (technology != null && content != null) {
+                        sections.add(new LogSection(technology, content));
+                    }
+                }
+            }
+        } else {
+            // LLM returned a string instead of array — wrap in a single general section
+            String content = el.isJsonPrimitive() ? el.getAsString() : gson.toJson(el);
+            sections.add(new LogSection("General", content));
+        }
+
+        return sections.isEmpty() ? null : sections;
     }
 
     private String extractStringField(JsonObject obj, String field) {
         if (!obj.has(field)) return null;
         JsonElement el = obj.get(field);
-        // LLM sometimes returns nested objects instead of a plain string
         return el.isJsonPrimitive() ? el.getAsString() : gson.toJson(el);
     }
 }

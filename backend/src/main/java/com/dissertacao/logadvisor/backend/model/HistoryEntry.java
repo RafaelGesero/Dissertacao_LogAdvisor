@@ -7,11 +7,14 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Data
-@AllArgsConstructor
 @NoArgsConstructor
-public class LogAdviceResponse {
+@AllArgsConstructor
+public class HistoryEntry {
+    private Long id;
+    private String keywords;
+    private String query;
+    private String createdAt;
     private List<LogSection> logStructure;
     private String storageTips;
     private List<ArticleResult> sources;
-    private String keywords;
 }
