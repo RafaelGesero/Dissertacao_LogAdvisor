@@ -58,7 +58,7 @@ public class LogAdvisorService {
                     .filter(text -> text != null && !text.isBlank())
                     .collect(Collectors.joining("\n\n---\n\n"));
         } else {
-            log.info("Nenhum artigo na base, a pesquisar via SerpAPI...");
+            log.info("Nenhum artigo na base, pesquisar com SerpAPI...");
             List<ArticleResult> articles = serpApiService.searchArticles(keywords);
 
             if (!articles.isEmpty()) {
@@ -95,7 +95,7 @@ public class LogAdvisorService {
 
                 "logStructure": An ARRAY of sections, one per technology/language/framework/database \
                 identified in the user's description. For each section:
-                - "technology": the exact name of the technology (e.g. "Java", "Spring Boot", "SQL", "React", "HTML")
+                - "technology": the exact name of the technology (e.g. "Java", "Python" ,"Spring Boot", "SQL", "React", "HTML")
                 - "content": A structured string with EXACTLY these 4 labeled sections in this order, \
                   using \\n for line breaks, based EXCLUSIVELY on the academic articles. \
                   Use this exact format (replace placeholders with real content):\
@@ -166,12 +166,12 @@ public class LogAdvisorService {
                 return response;
             }
         } catch (Exception e) {
-            log.error("Erro ao parsear JSON do LLM para query '{}': {}", query, e.getMessage());
+            log.error("Erro no parser JSON do LLM para query '{}': {}", query, e.getMessage());
         }
 
         LogAdviceResponse fallback = new LogAdviceResponse();
         fallback.setLogStructure(List.of(new LogSection("General", raw)));
-        fallback.setStorageTips("Não foi possível gerar as dicas de armazenamento separadamente.");
+        fallback.setStorageTips("Não foi possível cria a estrutura pedida.");
         return fallback;
     }
 
