@@ -9,9 +9,11 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.dissertacao.logadvisor.backend.model.ArticleResult;
+import com.dissertacao.logadvisor.backend.model.HistoryEntry;
 import com.dissertacao.logadvisor.backend.model.LogAdviceResponse;
 import com.dissertacao.logadvisor.backend.service.KnowledgeBaseService;
 import com.dissertacao.logadvisor.backend.service.LogAdvisorService;
+import com.dissertacao.logadvisor.backend.service.SearchHistoryService;
 import com.dissertacao.logadvisor.backend.service.SerpApiService;
 
 import lombok.RequiredArgsConstructor;
@@ -24,6 +26,7 @@ public class SearchController {
     private final SerpApiService serpApiService;
     private final LogAdvisorService logAdvisorService;
     private final KnowledgeBaseService knowledgeBaseService;
+    private final SearchHistoryService searchHistoryService;
 
     @GetMapping("/searchArticles")
     public ResponseEntity<List<ArticleResult>> searchArticles(@RequestParam String query) {
@@ -32,7 +35,14 @@ public class SearchController {
 
     @GetMapping("/advice")
     public ResponseEntity<LogAdviceResponse> getAdvice(@RequestParam String query) {
-        return ResponseEntity.ok(logAdvisorService.getLoggingAdvice(query));
+        LogAdviceResponse response = logAdvisorService.getLoggingAdvice(query);
+        searchHistoryService.save(query, response);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/history")
+    public ResponseEntity<List<HistoryEntry>> getHistory() {
+        return ResponseEntity.ok(searchHistoryService.getAll());
     }
 
     @GetMapping("/articlesKB")

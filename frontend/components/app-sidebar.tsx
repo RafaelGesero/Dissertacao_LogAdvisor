@@ -4,10 +4,9 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
   LayoutDashboard,
-  Store,
   Settings,
   Shield,
-  History,
+  Database,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -16,8 +15,7 @@ const navigation = [
     title: "Overview",
     items: [
       { name: "Start", href: "/", icon: LayoutDashboard },
-      { name: "History", href: "/history", icon: History },
-      { name: "Community", href: "/marketplace", icon: Store },
+      { name: "Knowledge Base", href: "/knowledge-base", icon: Database },
     ],
   },
 ]
