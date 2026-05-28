@@ -3,7 +3,7 @@ WORKDIR /app
 COPY . .
 RUN ./mvnw package -Dmaven.test.skip=true
 
-FROM eclipse-temurin:21-jre-alpine
+FROM eclipse-temurin:21-jre-jammy
 WORKDIR /app
 COPY --from=build /app/target/*.jar app.jar
 EXPOSE 8080
