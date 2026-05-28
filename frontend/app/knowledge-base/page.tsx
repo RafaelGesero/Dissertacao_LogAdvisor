@@ -36,7 +36,7 @@ export default function KnowledgeBasePage() {
     setIsLoading(true)
     setError(null)
     try {
-      const res = await fetch("http://localhost:8080/log/articlesKB")
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/log/articlesKB`)
       if (!res.ok) throw new Error(`Server error: ${res.status}`)
       const data: Article[] = await res.json()
       setArticles(data)

@@ -140,7 +140,7 @@ export default function HomePage() {
   const [sessionHistory, setSessionHistory] = useState<SessionEntry[]>([])
 
   useEffect(() => {
-    fetch("http://localhost:8080/log/history")
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/log/history`)
       .then((r) => r.ok ? r.json() : Promise.reject(r.status))
       .then((entries: { id: number; keywords: string; createdAt: string; logStructure: LogSection[]; storageTips: string; sources: ArticleSource[] }[]) => {
         setSessionHistory(
@@ -176,7 +176,7 @@ export default function HomePage() {
     setError(null)
     try {
       const res = await fetch(
-        `http://localhost:8080/log/advice?query=${encodeURIComponent(query)}`
+        `${process.env.NEXT_PUBLIC_API_URL}/log/advice?query=${encodeURIComponent(query)}`
       )
       if (!res.ok) throw new Error(`Server error: ${res.status}`)
       const data: AnalysisResult = await res.json()
