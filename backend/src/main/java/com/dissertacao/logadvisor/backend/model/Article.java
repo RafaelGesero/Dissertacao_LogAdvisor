@@ -12,33 +12,26 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-@Entity
-@Table(name = "search_history")
 @Data
-@NoArgsConstructor
+@Entity
+@Table(name = "articles")
 @AllArgsConstructor
-public class SearchHistory {
+@NoArgsConstructor
+public class Article {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private String keywords;
+    @Column(unique = true, length = 2048)
+    private String link;
+
+    private String title;
 
     @Column(columnDefinition = "TEXT")
-    private String query;
+    private String snippet;
 
+    private String publication;
+    private String technology;
     private LocalDateTime createdAt;
-
-    @Column(columnDefinition = "TEXT")
-    private String logStructureJson;
-
-    @Column(columnDefinition = "TEXT")
-    private String storageTips;
-
-    @Column(columnDefinition = "TEXT")
-    private String sourcesJson;
-
-    @Column(columnDefinition = "TEXT")
-    private String articleIdsJson;
 }

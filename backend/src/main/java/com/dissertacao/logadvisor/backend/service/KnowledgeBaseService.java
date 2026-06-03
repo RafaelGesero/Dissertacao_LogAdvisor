@@ -1,17 +1,22 @@
 package com.dissertacao.logadvisor.backend.service;
 
-import java.util.ArrayList;
+import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import com.dissertacao.logadvisor.backend.model.Article;
 import com.dissertacao.logadvisor.backend.model.ArticleResult;
+import com.dissertacao.logadvisor.backend.repository.ArticleRepository;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 
 import dev.langchain4j.data.document.Metadata;
 import dev.langchain4j.data.embedding.Embedding;
@@ -30,6 +35,7 @@ public class KnowledgeBaseService {
 
     private final EmbeddingModel embeddingModel;
     private final ChromaEmbeddingStore embeddingStore;
+    private final ArticleRepository articleRepository;
 
     private final RestTemplate restTemplate = new RestTemplate();
 
@@ -42,15 +48,15 @@ public class KnowledgeBaseService {
     @Value("${chroma.collection}")
     private String collectionName;
 
+    // ── Vector search ────────────────────────────────────────────────────────
+
     public List<EmbeddingMatch<TextSegment>> search(String query, int maxResults) {
         Embedding queryEmbedding = embeddingModel.embed(query).content();
-
         EmbeddingSearchRequest request = EmbeddingSearchRequest.builder()
                 .queryEmbedding(queryEmbedding)
                 .maxResults(maxResults)
                 .minScore(minScore)
                 .build();
-
         return embeddingStore.search(request).matches();
     }
 
@@ -58,107 +64,156 @@ public class KnowledgeBaseService {
         return !search(query, 3).isEmpty();
     }
 
+    // ── Save ─────────────────────────────────────────────────────────────────
+
     public void saveArticles(List<ArticleResult> articles) {
-        for (ArticleResult article : articles) {
-            String content = buildContent(article);
-            Metadata metadata = Metadata.from("link", article.getLink());
-            metadata.put("title", article.getTitle());
-            metadata.put("publication", article.getPublication());
-            metadata.put("technology", article.getTechnology() != null ? article.getTechnology() : "");
+        int saved = 0;
+        for (ArticleResult ar : articles) {
+            try {
+                // Upsert in PostgreSQL
+                Article entity = articleRepository.findByLink(ar.getLink())
+                        .orElseGet(() -> {
+                            Article a = new Article();
+                            a.setCreatedAt(LocalDateTime.now());
+                            return a;
+                        });
+                entity.setLink(ar.getLink() != null ? ar.getLink() : "");
+                entity.setTitle(ar.getTitle() != null ? ar.getTitle() : "");
+                entity.setSnippet(ar.getSnippet() != null ? ar.getSnippet() : "");
+                entity.setPublication(ar.getPublication() != null ? ar.getPublication() : "");
+                entity.setTechnology(ar.getTechnology() != null ? ar.getTechnology() : "");
+                Article saved_entity = articleRepository.save(entity);
+                ar.setId(saved_entity.getId());
 
-            TextSegment segment = TextSegment.from(content, metadata);
-            Embedding embedding = embeddingModel.embed(segment).content();
-            embeddingStore.add(embedding, segment);
+                // Embed + add to Chroma
+                String content = buildContent(ar);
+                Metadata metadata = Metadata.from("link", entity.getLink());
+                metadata.put("title", entity.getTitle());
+                metadata.put("publication", entity.getPublication());
+                metadata.put("technology", entity.getTechnology());
+                TextSegment segment = TextSegment.from(content, metadata);
+                Embedding embedding = embeddingModel.embed(segment).content();
+                embeddingStore.add(embedding, segment);
+                saved++;
+            } catch (Exception e) {
+                log.error("Erro ao guardar artigo '{}': {}", ar.getTitle(), e.getMessage());
+            }
         }
+        log.info("saveArticles: {}/{} guardados", saved, articles.size());
     }
 
-    @SuppressWarnings("unchecked")
+    // ── Read (PostgreSQL as source of truth) ─────────────────────────────────
+
     public List<ArticleResult> getAllArticles() {
-        String collectionUrl = chromaUrl + "/api/v1/collections/" + collectionName;
-        Map<String, Object> collection = restTemplate.getForObject(collectionUrl, Map.class);
-
-        if (collection == null || !collection.containsKey("id")) {
-            log.warn("Collection '{}' não encontrada no Chroma", collectionName);
-            return List.of();
-        }
-
-        String collectionId = (String) collection.get("id");
-        log.info("Collection '{}' encontrada com id={}", collectionName, collectionId);
-
-        String getUrl = chromaUrl + "/api/v1/collections/" + collectionId + "/get";
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-
-        Map<String, Object> body = Map.of(
-                "include", List.of("documents", "metadatas"),
-                "limit", 10000,
-                "offset", 0);
-
-        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
-
-        Map<String, Object> response = restTemplate.postForObject(getUrl, entity, Map.class);
-
-        if (response == null) {
-            return List.of();
-        }
-
-        List<String> documents = (List<String>) response.get("documents");
-        List<Map<String, Object>> metadatas = (List<Map<String, Object>>) response.get("metadatas");
-
-        if (documents == null || documents.isEmpty()) {
-            log.info("Nenhum artigo encontrado na base de conhecimento");
-            return List.of();
-        }
-
-        List<ArticleResult> articles = new ArrayList<>();
-        for (int i = 0; i < documents.size(); i++) {
-            Map<String, Object> meta = (metadatas != null && i < metadatas.size())
-                    ? metadatas.get(i)
-                    : Map.of();
-
-            ArticleResult article = new ArticleResult();
-            article.setTitle((String) meta.getOrDefault("title", "Sem título"));
-            article.setLink((String) meta.getOrDefault("link", ""));
-            article.setPublication((String) meta.getOrDefault("publication", ""));
-            article.setSnippet(documents.get(i));
-            article.setTechnology((String) meta.getOrDefault("technology", ""));
-            articles.add(article);
-        }
-
-        log.info("Total de artigos na base de conhecimento: {}", articles.size());
-        return articles;
+        List<Article> entities = articleRepository.findAll(
+                Sort.by(Sort.Direction.DESC, "createdAt"));
+        log.info("Total de artigos na KB (PostgreSQL): {}", entities.size());
+        return entities.stream().map(this::toArticleResult).toList();
     }
 
-    @SuppressWarnings("unchecked")
+    // ── Delete individual ─────────────────────────────────────────────────────
+
+    public void deleteArticle(Long id) {
+        articleRepository.findById(id).ifPresentOrElse(article -> {
+            deleteFromChromaByLink(article.getLink());
+            articleRepository.deleteById(id);
+            log.info("Artigo id={} ('{}') removido", id, article.getTitle());
+        }, () -> log.warn("Artigo id={} não encontrado", id));
+    }
+
+    // ── Clear all ────────────────────────────────────────────────────────────
+
     public void clearAllArticles() {
-        String collectionUrl = chromaUrl + "/api/v1/collections/" + collectionName;
-        Map<String, Object> collection = restTemplate.getForObject(collectionUrl, Map.class);
-        if (collection == null || !collection.containsKey("id")) {
-            log.warn("Collection '{}' não encontrada — nada a limpar", collectionName);
-            return;
+        long count = articleRepository.count();
+        articleRepository.deleteAll();
+        clearChromaCollection();
+        log.info("KB limpa: {} artigos removidos", count);
+    }
+
+    // ── Helpers ──────────────────────────────────────────────────────────────
+
+    public Article findOrSave(ArticleResult ar) {
+        if (ar.getLink() == null || ar.getLink().isBlank()) return null;
+        return articleRepository.findByLink(ar.getLink()).orElseGet(() -> {
+            Article a = new Article();
+            a.setLink(ar.getLink());
+            a.setTitle(ar.getTitle() != null ? ar.getTitle() : "");
+            a.setSnippet(ar.getSnippet() != null ? ar.getSnippet() : "");
+            a.setPublication(ar.getPublication() != null ? ar.getPublication() : "");
+            a.setTechnology(ar.getTechnology() != null ? ar.getTechnology() : "");
+            a.setCreatedAt(LocalDateTime.now());
+            return articleRepository.save(a);
+        });
+    }
+
+    private ArticleResult toArticleResult(Article a) {
+        ArticleResult ar = new ArticleResult();
+        ar.setId(a.getId());
+        ar.setTitle(a.getTitle());
+        ar.setLink(a.getLink());
+        ar.setSnippet(a.getSnippet());
+        ar.setPublication(a.getPublication());
+        ar.setTechnology(a.getTechnology());
+        return ar;
+    }
+
+    private void deleteFromChromaByLink(String link) {
+        try {
+            String collectionId = fetchCollectionId();
+            if (collectionId == null) return;
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            JsonObject eq = new JsonObject();
+            eq.addProperty("$eq", link);
+            JsonObject where = new JsonObject();
+            where.add("link", eq);
+            JsonObject body = new JsonObject();
+            body.add("where", where);
+            String deleteUrl = chromaUrl + "/api/v1/collections/" + collectionId + "/delete";
+            restTemplate.postForEntity(deleteUrl, new HttpEntity<>(body.toString(), headers), String.class);
+        } catch (Exception e) {
+            log.error("Erro ao remover do Chroma (link={}): {}", link, e.getMessage());
         }
-        String collectionId = (String) collection.get("id");
+    }
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-
-        Map<String, Object> getBody = Map.of("include", List.of(), "limit", 100000, "offset", 0);
-        HttpEntity<Map<String, Object>> getEntity = new HttpEntity<>(getBody, headers);
-        String getUrl = chromaUrl + "/api/v1/collections/" + collectionId + "/get";
-        Map<String, Object> response = restTemplate.postForObject(getUrl, getEntity, Map.class);
-
-        if (response == null) return;
-        List<String> ids = (List<String>) response.get("ids");
-        if (ids == null || ids.isEmpty()) {
-            log.info("KB já está vazia");
-            return;
+    private void clearChromaCollection() {
+        try {
+            String collectionId = fetchCollectionId();
+            if (collectionId == null) return;
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            String getUrl = chromaUrl + "/api/v1/collections/" + collectionId + "/get";
+            String responseBody = restTemplate.postForObject(getUrl,
+                    new HttpEntity<>("{\"include\":[],\"limit\":100000,\"offset\":0}", headers), String.class);
+            if (responseBody == null) return;
+            JsonObject resp = JsonParser.parseString(responseBody).getAsJsonObject();
+            if (!resp.has("ids") || resp.get("ids").isJsonNull()) return;
+            StringBuilder ids = new StringBuilder("[");
+            resp.getAsJsonArray("ids").forEach(el -> {
+                if (ids.length() > 1) ids.append(",");
+                ids.append("\"").append(el.getAsString()).append("\"");
+            });
+            ids.append("]");
+            if (ids.length() <= 2) return;
+            String deleteUrl = chromaUrl + "/api/v1/collections/" + collectionId + "/delete";
+            restTemplate.postForEntity(deleteUrl,
+                    new HttpEntity<>("{\"ids\":" + ids + "}", headers), String.class);
+        } catch (Exception e) {
+            log.error("Erro ao limpar Chroma: {}", e.getMessage());
         }
+    }
 
-        String deleteUrl = chromaUrl + "/api/v1/collections/" + collectionId + "/delete";
-        HttpEntity<Map<String, Object>> deleteEntity = new HttpEntity<>(Map.of("ids", ids), headers);
-        restTemplate.postForEntity(deleteUrl, deleteEntity, String.class);
-        log.info("KB limpa: {} documentos removidos", ids.size());
+    private String fetchCollectionId() {
+        try {
+            String json = restTemplate.getForObject(
+                    chromaUrl + "/api/v1/collections/" + collectionName, String.class);
+            if (json == null) return null;
+            JsonElement id = JsonParser.parseString(json).getAsJsonObject().get("id");
+            return (id == null || id.isJsonNull()) ? null : id.getAsString();
+        } catch (Exception e) {
+            log.error("Erro ao obter collection '{}': {}", collectionName, e.getMessage());
+            return null;
+        }
     }
 
     private String buildContent(ArticleResult article) {

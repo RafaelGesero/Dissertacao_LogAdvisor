@@ -1,6 +1,6 @@
 start:
 	sudo docker-compose up -d
-	cd backend && ./mvnw spring-boot:run &
+	cd backend && ./mvnw spring-boot:run -Dspring-boot.run.profiles=local &
 	cd frontend && npm run dev
 
 stop:

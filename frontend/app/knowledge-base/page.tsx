@@ -41,6 +41,7 @@ import {
 } from "lucide-react"
 
 type Article = {
+  id: number
   title: string
   link: string
   snippet: string
@@ -48,7 +49,7 @@ type Article = {
   technology: string
 }
 
-const EMPTY_FORM: Article = { title: "", link: "", snippet: "", publication: "", technology: "" }
+const EMPTY_FORM: Article = { id: 0, title: "", link: "", snippet: "", publication: "", technology: "" }
 
 function groupByTechnology(articles: Article[]): Record<string, Article[]> {
   return articles.reduce((acc, a) => {
@@ -59,7 +60,7 @@ function groupByTechnology(articles: Article[]): Record<string, Article[]> {
   }, {} as Record<string, Article[]>)
 }
 
-function ArticleCard({ article }: { article: Article }) {
+function ArticleCard({ article, onDelete }: { article: Article; onDelete: (id: number) => void }) {
   return (
     <Card className="border-border bg-card">
       <CardContent className="p-4 flex items-start gap-4">
@@ -84,17 +85,26 @@ function ArticleCard({ article }: { article: Article }) {
             </p>
           )}
         </div>
-        {article.link && (
-          <a
-            href={article.link}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="shrink-0 text-muted-foreground hover:text-accent transition-colors mt-0.5"
-            title="Open article"
+        <div className="flex items-center gap-2 shrink-0 mt-0.5">
+          {article.link && (
+            <a
+              href={article.link}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-muted-foreground hover:text-accent transition-colors"
+              title="Open article"
+            >
+              <ExternalLink className="h-4 w-4" />
+            </a>
+          )}
+          <button
+            onClick={() => onDelete(article.id)}
+            className="p-1 rounded text-muted-foreground hover:text-red-400 hover:bg-red-950/30 transition-colors"
+            title="Delete article"
           >
-            <ExternalLink className="h-4 w-4" />
-          </a>
-        )}
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        </div>
       </CardContent>
     </Card>
   )
@@ -161,6 +171,16 @@ export default function KnowledgeBasePage() {
   const technologies = Object.keys(grouped).sort((a, b) =>
     a === "Other" ? 1 : b === "Other" ? -1 : a.localeCompare(b)
   )
+
+  const handleDeleteArticle = async (id: number) => {
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/log/articlesKB/${id}`, { method: "DELETE" })
+      if (!res.ok) throw new Error(`Server error: ${res.status}`)
+      setArticles((prev) => prev.filter((a) => a.id !== id))
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to delete article.")
+    }
+  }
 
   const handleOpenAdd = () => {
     setForm(EMPTY_FORM)
@@ -249,6 +269,7 @@ export default function KnowledgeBasePage() {
                 Add Article
               </Button>
               <Button
+                suppressHydrationWarning
                 variant="outline"
                 size="sm"
                 className="gap-1.5 border-red-800/60 text-red-400 hover:bg-red-950/30 hover:text-red-300 h-8"
@@ -314,8 +335,8 @@ export default function KnowledgeBasePage() {
 
               {technologies.map((tech) => (
                 <TabsContent key={tech} value={tech} className="mt-0 space-y-3">
-                  {grouped[tech].map((article, i) => (
-                    <ArticleCard key={i} article={article} />
+                  {grouped[tech].map((article) => (
+                    <ArticleCard key={article.id} article={article} onDelete={handleDeleteArticle} />
                   ))}
                 </TabsContent>
               ))}

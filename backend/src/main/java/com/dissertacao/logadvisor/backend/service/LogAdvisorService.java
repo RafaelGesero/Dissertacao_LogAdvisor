@@ -67,6 +67,7 @@ public class LogAdvisorService {
                         ar.setTitle(meta.getString("title"));
                         ar.setLink(link);
                         ar.setPublication(meta.getString("publication"));
+                        ar.setTechnology(tech);
                         allSources.add(ar);
                     }
                     if (added < MAX_PROMPT_ARTICLES_PER_TECH) {

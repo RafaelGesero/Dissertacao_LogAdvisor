@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class ArticleResult {
+    private Long id;
     private String title;
     private String link;
     private String snippet;

@@ -66,6 +66,12 @@ public class SearchController {
         return ResponseEntity.ok().build();
     }
 
+    @DeleteMapping("/articlesKB/{id}")
+    public ResponseEntity<Void> deleteArticle(@PathVariable Long id) {
+        knowledgeBaseService.deleteArticle(id);
+        return ResponseEntity.ok().build();
+    }
+
     @DeleteMapping("/articlesKB")
     public ResponseEntity<Void> clearKnowledgeBase() {
         knowledgeBaseService.clearAllArticles();
