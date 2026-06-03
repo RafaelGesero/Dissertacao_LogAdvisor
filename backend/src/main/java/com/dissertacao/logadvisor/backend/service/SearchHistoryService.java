@@ -46,6 +46,10 @@ public class SearchHistoryService {
         repository.save(entry);
     }
 
+    public void deleteById(Long id) {
+        repository.deleteById(id);
+    }
+
     public List<HistoryEntry> getAll() {
         return repository.findAllByOrderByCreatedAtDesc()
                 .stream()

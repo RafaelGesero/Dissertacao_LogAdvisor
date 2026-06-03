@@ -64,6 +64,7 @@ public class KnowledgeBaseService {
             Metadata metadata = Metadata.from("link", article.getLink());
             metadata.put("title", article.getTitle());
             metadata.put("publication", article.getPublication());
+            metadata.put("technology", article.getTechnology() != null ? article.getTechnology() : "");
 
             TextSegment segment = TextSegment.from(content, metadata);
             Embedding embedding = embeddingModel.embed(segment).content();
@@ -121,11 +122,43 @@ public class KnowledgeBaseService {
             article.setLink((String) meta.getOrDefault("link", ""));
             article.setPublication((String) meta.getOrDefault("publication", ""));
             article.setSnippet(documents.get(i));
+            article.setTechnology((String) meta.getOrDefault("technology", ""));
             articles.add(article);
         }
 
         log.info("Total de artigos na base de conhecimento: {}", articles.size());
         return articles;
+    }
+
+    @SuppressWarnings("unchecked")
+    public void clearAllArticles() {
+        String collectionUrl = chromaUrl + "/api/v1/collections/" + collectionName;
+        Map<String, Object> collection = restTemplate.getForObject(collectionUrl, Map.class);
+        if (collection == null || !collection.containsKey("id")) {
+            log.warn("Collection '{}' não encontrada — nada a limpar", collectionName);
+            return;
+        }
+        String collectionId = (String) collection.get("id");
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        Map<String, Object> getBody = Map.of("include", List.of(), "limit", 100000, "offset", 0);
+        HttpEntity<Map<String, Object>> getEntity = new HttpEntity<>(getBody, headers);
+        String getUrl = chromaUrl + "/api/v1/collections/" + collectionId + "/get";
+        Map<String, Object> response = restTemplate.postForObject(getUrl, getEntity, Map.class);
+
+        if (response == null) return;
+        List<String> ids = (List<String>) response.get("ids");
+        if (ids == null || ids.isEmpty()) {
+            log.info("KB já está vazia");
+            return;
+        }
+
+        String deleteUrl = chromaUrl + "/api/v1/collections/" + collectionId + "/delete";
+        HttpEntity<Map<String, Object>> deleteEntity = new HttpEntity<>(Map.of("ids", ids), headers);
+        restTemplate.postForEntity(deleteUrl, deleteEntity, String.class);
+        log.info("KB limpa: {} documentos removidos", ids.size());
     }
 
     private String buildContent(ArticleResult article) {

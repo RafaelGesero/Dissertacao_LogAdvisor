@@ -13,4 +13,5 @@ public class ArticleResult {
     private String snippet;
     private String publication;
     private int year;
+    private String technology;
 }

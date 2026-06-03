@@ -1,7 +1,10 @@
 package com.dissertacao.logadvisor.backend.service;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
@@ -27,6 +30,10 @@ public class LogAdvisorService {
 
     private static final String MANDATORY_SEARCH_TERMS = "security logging data protection information security";
     private static final String NO_INFO_MESSAGE = "Não foi encontrada informação relevante sobre o tema em questão";
+    private static final int MIN_KB_ARTICLES_PER_TECH = 10;
+    private static final int MAX_KB_FETCH_PER_TECH = 100;
+    private static final int MAX_PROMPT_ARTICLES_PER_TECH = 15;
+    private static final int MAX_SNIPPET_CHARS = 350;
 
     private final KnowledgeBaseService knowledgeBaseService;
     private final SerpApiService serpApiService;
@@ -34,48 +41,73 @@ public class LogAdvisorService {
     private final Gson gson = new Gson();
 
     public LogAdviceResponse getLoggingAdvice(String query) {
-        String keywords = extractSearchKeywords(query);
-        log.info("Keywords extraídos para pesquisa: {}", keywords);
+        String rawKeywords = extractRawKeywords(query);
+        List<String> technologies = parseTechnologies(rawKeywords);
+        String fullKeywords = rawKeywords.replace(",", " ").trim() + " " + MANDATORY_SEARCH_TERMS;
 
-        List<EmbeddingMatch<TextSegment>> matches = knowledgeBaseService.search(keywords, 5);
-        String articlesString;
-        List<ArticleResult> sources;
+        log.info("Tecnologias extraídas: {}", technologies);
 
-        if (!matches.isEmpty()) {
-            log.info("Encontrados {} artigos na base de conhecimento", matches.size());
-            sources = matches.stream()
-                    .map(match -> {
-                        var meta = match.embedded().metadata();
+        List<ArticleResult> allSources = new ArrayList<>();
+        List<String> promptArticles = new ArrayList<>();
+        Set<String> seenLinks = new HashSet<>();
+
+        for (String tech : technologies) {
+            String techQuery = tech + " " + MANDATORY_SEARCH_TERMS;
+            List<EmbeddingMatch<TextSegment>> kbMatches =
+                    knowledgeBaseService.search(techQuery, MAX_KB_FETCH_PER_TECH);
+
+            if (kbMatches.size() >= MIN_KB_ARTICLES_PER_TECH) {
+                log.info("KB: {} artigos para '{}' — suficiente, sem SerpAPI", kbMatches.size(), tech);
+                int added = 0;
+                for (EmbeddingMatch<TextSegment> match : kbMatches) {
+                    var meta = match.embedded().metadata();
+                    String link = meta.getString("link");
+                    if (link != null && seenLinks.add(link)) {
                         ArticleResult ar = new ArticleResult();
                         ar.setTitle(meta.getString("title"));
-                        ar.setLink(meta.getString("link"));
+                        ar.setLink(link);
                         ar.setPublication(meta.getString("publication"));
-                        return ar;
-                    })
-                    .collect(Collectors.toList());
-            articlesString = matches.stream()
-                    .map(match -> match.embedded().text())
-                    .filter(text -> text != null && !text.isBlank())
-                    .collect(Collectors.joining("\n\n---\n\n"));
-        } else {
-            log.info("Nenhum artigo na base, pesquisar com SerpAPI...");
-            List<ArticleResult> articles = serpApiService.searchArticles(keywords);
-
-            if (!articles.isEmpty()) {
-                knowledgeBaseService.saveArticles(articles);
-                log.info("Guardados {} artigos na base de conhecimento", articles.size());
+                        allSources.add(ar);
+                    }
+                    if (added < MAX_PROMPT_ARTICLES_PER_TECH) {
+                        String text = match.embedded().text();
+                        if (text != null && !text.isBlank()) {
+                            promptArticles.add(truncate(text));
+                            added++;
+                        }
+                    }
+                }
+            } else {
+                log.info("KB: {} artigos para '{}' (mínimo {}), a pesquisar SerpAPI...",
+                        kbMatches.size(), tech, MIN_KB_ARTICLES_PER_TECH);
+                List<ArticleResult> serpArticles = serpApiService.searchArticles(techQuery);
+                if (!serpArticles.isEmpty()) {
+                    serpArticles.forEach(a -> a.setTechnology(tech));
+                    knowledgeBaseService.saveArticles(serpArticles);
+                    log.info("Guardados {} artigos de '{}' na KB", serpArticles.size(), tech);
+                }
+                int added = 0;
+                for (ArticleResult a : serpArticles) {
+                    if (a.getLink() != null && seenLinks.add(a.getLink())) {
+                        allSources.add(a);
+                    }
+                    if (added < MAX_PROMPT_ARTICLES_PER_TECH) {
+                        String text = "Title: " + a.getTitle() + "\nSnippet: " + a.getSnippet();
+                        if (!text.isBlank()) {
+                            promptArticles.add(truncate(text));
+                            added++;
+                        }
+                    }
+                }
             }
-
-            sources = articles;
-            articlesString = articles.stream()
-                    .map(a -> "Title: " + a.getTitle() + "\nSnippet: " + a.getSnippet())
-                    .filter(text -> text != null && !text.isBlank())
-                    .collect(Collectors.joining("\n\n---\n\n"));
         }
 
-        if (articlesString.isBlank()) {
+        String articlesString;
+        if (promptArticles.isEmpty()) {
             articlesString = "No articles found. Use general knowledge about secure logging.";
-            sources = List.of();
+            allSources.clear();
+        } else {
+            articlesString = String.join("\n\n---\n\n", promptArticles);
         }
 
         String prompt = """
@@ -95,7 +127,7 @@ public class LogAdvisorService {
 
                 "logStructure": An ARRAY of sections, one per technology/language/framework/database \
                 identified in the user's description. For each section:
-                - "technology": the exact name of the technology (e.g. "Java", "Python" ,"Spring Boot", "SQL", "React", "HTML")
+                - "technology": the exact name of the technology (e.g. "Java", "Spring Boot", "SQL", "React", "HTML")
                 - "content": A structured string with EXACTLY these 4 labeled sections in this order, \
                   using \\n for line breaks, based EXCLUSIVELY on the academic articles. \
                   Use this exact format (replace placeholders with real content):\
@@ -121,26 +153,34 @@ public class LogAdvisorService {
         String raw = chatLanguageModel.generate(prompt);
         log.debug("Resposta raw do LLM: {}", raw);
         LogAdviceResponse response = parseResponse(raw, query);
-        response.setSources(sources);
-        response.setKeywords(keywords);
+        response.setSources(allSources);
+        response.setKeywords(fullKeywords);
         return response;
     }
 
-    private String extractSearchKeywords(String query) {
+    private String extractRawKeywords(String query) {
         String keywordPrompt = """
                 Extract 3 to 5 concise technical keywords (languages, frameworks, databases, protocols) \
                 from the following application description.
-                Reply ONLY with the keywords separated by spaces, nothing else. No punctuation, no explanations.
+                Reply ONLY with the keywords separated by commas, nothing else. No punctuation at the end, no explanations.
 
                 Description: %s
                 """.formatted(query);
         try {
-            String extracted = chatLanguageModel.generate(keywordPrompt).trim();
-            return extracted + " " + MANDATORY_SEARCH_TERMS;
+            return chatLanguageModel.generate(keywordPrompt).trim()
+                    .replaceAll("\\.$", "");
         } catch (Exception e) {
             log.warn("Falha ao extrair keywords, usando query original: {}", e.getMessage());
-            return query + " " + MANDATORY_SEARCH_TERMS;
+            return query;
         }
+    }
+
+    private List<String> parseTechnologies(String rawKeywords) {
+        return Arrays.stream(rawKeywords.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isBlank())
+                .distinct()
+                .collect(Collectors.toList());
     }
 
     private LogAdviceResponse parseResponse(String raw, String query) {
@@ -166,12 +206,12 @@ public class LogAdvisorService {
                 return response;
             }
         } catch (Exception e) {
-            log.error("Erro no parser JSON do LLM para query '{}': {}", query, e.getMessage());
+            log.error("Erro ao parsear JSON do LLM para query '{}': {}", query, e.getMessage());
         }
 
         LogAdviceResponse fallback = new LogAdviceResponse();
         fallback.setLogStructure(List.of(new LogSection("General", raw)));
-        fallback.setStorageTips("Não foi possível cria a estrutura pedida.");
+        fallback.setStorageTips("Não foi possível gerar as dicas de armazenamento separadamente.");
         return fallback;
     }
 
@@ -192,12 +232,15 @@ public class LogAdvisorService {
                 }
             }
         } else {
-            // LLM returned a string instead of array — wrap in a single general section
             String content = el.isJsonPrimitive() ? el.getAsString() : gson.toJson(el);
             sections.add(new LogSection("General", content));
         }
 
         return sections.isEmpty() ? null : sections;
+    }
+
+    private String truncate(String text) {
+        return text.length() <= MAX_SNIPPET_CHARS ? text : text.substring(0, MAX_SNIPPET_CHARS) + "…";
     }
 
     private String extractStringField(JsonObject obj, String field) {
