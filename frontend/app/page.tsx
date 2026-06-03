@@ -156,7 +156,7 @@ export default function HomePage() {
   const deleteEntry = async (e: React.MouseEvent, id: number) => {
     e.stopPropagation()
     try {
-      await fetch(`http://localhost:8080/log/history/${id}`, { method: "DELETE" })
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/log/history/${id}`, { method: "DELETE" })
       setSessionHistory((prev) => prev.filter((en) => en.id !== id))
     } catch {
       // silently ignore — entry stays in the list

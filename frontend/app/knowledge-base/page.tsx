@@ -117,7 +117,7 @@ export default function KnowledgeBasePage() {
   const handleClear = async () => {
     setIsClearing(true)
     try {
-      const res = await fetch("http://localhost:8080/log/articlesKB", { method: "DELETE" })
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/log/articlesKB`, { method: "DELETE" })
       if (!res.ok) throw new Error(`Server error: ${res.status}`)
       setArticles([])
     } catch (e) {
@@ -176,7 +176,7 @@ export default function KnowledgeBasePage() {
     setIsSaving(true)
     setFormError(null)
     try {
-      const res = await fetch("http://localhost:8080/log/articlesKB", {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/log/articlesKB`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
