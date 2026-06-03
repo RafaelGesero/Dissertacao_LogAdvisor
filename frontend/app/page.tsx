@@ -54,7 +54,7 @@ const CONTENT_SECTIONS = [
   { key: "Mandatory Fields", label: "Mandatory Fields", Icon: ListChecks },
   { key: "Log Levels", label: "Log Levels", Icon: FileText },
   { key: "Security Events", label: "Security Events", Icon: ShieldCheck },
-  { key: "Example", label: "Example", Icon: Code2 },
+  { key: "Log Template", label: "Log Template", Icon: Code2 },
 ]
 
 function parseContent(content: string) {
@@ -70,7 +70,7 @@ function parseContent(content: string) {
       const idx = after.indexOf(`${CONTENT_SECTIONS[j].key}:`)
       if (idx !== -1 && idx < end) end = idx
     }
-    blocks.push({ label, Icon, text: after.slice(0, end).trim(), isCode: key === "Example" })
+    blocks.push({ label, Icon, text: after.slice(0, end).trim(), isCode: key === "Log Template" })
   }
   if (blocks.length === 0) {
     blocks.push({ label: "", Icon: FileText, text: content, isCode: false })

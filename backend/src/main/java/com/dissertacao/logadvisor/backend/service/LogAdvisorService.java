@@ -132,10 +132,16 @@ public class LogAdvisorService {
                 - "content": A structured string with EXACTLY these 4 labeled sections in this order, \
                   using \\n for line breaks, based EXCLUSIVELY on the academic articles. \
                   Use this exact format (replace placeholders with real content):\
-                  Mandatory Fields: <comma-separated list of required log fields>\\n\
-                  Log Levels:\\n- INFO: <when to use INFO>\\n- WARN: <when to use WARN>\\n- ERROR: <when to use ERROR>\\n\
-                  Security Events: <comma-separated list of security-specific events to log>\\n\
-                  Example:\\n<compact single-line JSON log entry for this technology>\
+                  Mandatory Fields: <comma-separated list of required log fields, e.g.: timestamp, level, service, userId, event, outcome, ipAddress>\\n\
+                  Log Levels:\\n- INFO: <when to use INFO — describe events>\\n- WARN: <when to use WARN — describe events>\\n- ERROR: <when to use ERROR — describe events>\\n\
+                  Security Events: <comma-separated list of security-specific events to log, e.g.: AUTH_SUCCESS, AUTH_FAILURE, AUTHZ_DENIED, DATA_ACCESS, SUSPICIOUS_ACTIVITY>\\n\
+                  Log Template:\\n\
+                  Schema: <one JSON object showing ALL mandatory fields with descriptive placeholders like <ISO-8601>, <hashed-id>, <success|failure>>\\n\
+                  <EVENT_NAME> (INFO): <concrete single-line JSON example for an INFO-level security event>\\n\
+                  <EVENT_NAME> (WARN): <concrete single-line JSON example for a WARN-level security event>\\n\
+                  <EVENT_NAME> (ERROR): <concrete single-line JSON example for an ERROR-level security event>\\n\
+                  Provide 3 to 5 event examples covering different log levels and security event types. \
+                  Each example must include all mandatory fields. Values must be realistic but anonymised (hash user IDs). \
                   If the academic articles contain NO relevant information for that specific technology, \
                   set content to exactly: "%s"
 
