@@ -32,7 +32,7 @@ services:
     build:
       context: ./frontend
       args:
-        NEXT_PUBLIC_API_URL: https://api.logadvisor.site
+        NEXT_PUBLIC_API_URL: https://logadvisor.site/api
     restart: unless-stopped
 
   nginx:
