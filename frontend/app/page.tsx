@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { apiFetch } from "@/lib/auth"
 import { AppSidebar } from "@/components/app-sidebar"
 import { AppHeader } from "@/components/app-header"
 import { Card, CardContent } from "@/components/ui/card"
@@ -94,7 +95,7 @@ export default function HomePage() {
   const [sessionHistory, setSessionHistory] = useState<SessionEntry[]>([])
 
   useEffect(() => {
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/log/history`)
+    apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/log/history`)
       .then((r) => r.ok ? r.json() : Promise.reject(r.status))
       .then((entries: { id: number; keywords: string; createdAt: string; logStructure: LogSection[]; storageTips: string; sources: ArticleSource[] }[]) => {
         setSessionHistory(
@@ -119,7 +120,7 @@ export default function HomePage() {
     setIsLoading(true)
     setError(null)
     try {
-      const res = await fetch(
+      const res = await apiFetch(
         `${process.env.NEXT_PUBLIC_API_URL}/log/advice?query=${encodeURIComponent(query)}`
       )
       if (!res.ok) throw new Error(`Server error: ${res.status}`)
@@ -157,7 +158,7 @@ export default function HomePage() {
   const deleteEntry = async (e: React.MouseEvent, id: number) => {
     e.stopPropagation()
     try {
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/log/history/${id}`, { method: "DELETE" })
+      await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/log/history/${id}`, { method: "DELETE" })
       setSessionHistory((prev) => prev.filter((en) => en.id !== id))
     } catch {
       // silently ignore — entry stays in the list

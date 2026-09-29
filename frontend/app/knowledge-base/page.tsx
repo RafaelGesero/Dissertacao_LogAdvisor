@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { apiFetch } from "@/lib/auth"
 import { AppSidebar } from "@/components/app-sidebar"
 import { AppHeader } from "@/components/app-header"
 import { Card, CardContent } from "@/components/ui/card"
@@ -127,7 +128,7 @@ export default function KnowledgeBasePage() {
   const handleClear = async () => {
     setIsClearing(true)
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/log/articlesKB`, { method: "DELETE" })
+      const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/log/articlesKB`, { method: "DELETE" })
       if (!res.ok) throw new Error(`Server error: ${res.status}`)
       setArticles([])
     } catch (e) {
@@ -142,7 +143,7 @@ export default function KnowledgeBasePage() {
     setIsLoading(true)
     setError(null)
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/log/articlesKB`)
+      const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/log/articlesKB`)
       if (!res.ok) throw new Error(`Server error: ${res.status}`)
       const data: Article[] = await res.json()
       setArticles(data)
@@ -174,7 +175,7 @@ export default function KnowledgeBasePage() {
 
   const handleDeleteArticle = async (id: number) => {
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/log/articlesKB/${id}`, { method: "DELETE" })
+      const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/log/articlesKB/${id}`, { method: "DELETE" })
       if (!res.ok) throw new Error(`Server error: ${res.status}`)
       setArticles((prev) => prev.filter((a) => a.id !== id))
     } catch (e) {
@@ -196,7 +197,7 @@ export default function KnowledgeBasePage() {
     setIsSaving(true)
     setFormError(null)
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/log/articlesKB`, {
+      const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/log/articlesKB`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
