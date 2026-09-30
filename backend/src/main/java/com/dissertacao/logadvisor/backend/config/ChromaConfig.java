@@ -39,7 +39,7 @@ public ChatLanguageModel chatLanguageModel() {
             .baseUrl("https://api.groq.com/openai/v1")
             .apiKey(groqApiKey)
             .modelName(groqModel)
-            .timeout(Duration.ofSeconds(30))
+            .timeout(Duration.ofSeconds(90))
             .build();
 }
 
