@@ -23,6 +23,9 @@ services:
       SERPAPI_KEY: ${SERPAPI_KEY}
       GROQ_API_KEY: ${GROQ_API_KEY}
       CHROMA_URL: http://chroma:8000
+      JWT_SECRET: ${JWT_SECRET}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin}
     depends_on:
       - postgres
       - chroma
@@ -32,7 +35,7 @@ services:
     build:
       context: ./frontend
       args:
-        NEXT_PUBLIC_API_URL: https://logadvisor.site/api
+        NEXT_PUBLIC_API_URL: /api
     restart: unless-stopped
 
   nginx:
