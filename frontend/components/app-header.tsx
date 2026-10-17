@@ -1,8 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { Bell, HelpCircle, User } from "lucide-react"
-import { signOut, useCurrentUser } from "@/lib/auth"
+import { LogOut, Menu, UserCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -12,46 +11,68 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { signOut, useCurrentUser } from "@/lib/auth"
+import { initials } from "@/components/app-sidebar"
+import { cn } from "@/lib/utils"
 
 interface AppHeaderProps {
   title: string
   description?: string
+  /** Buttons shown next to the title (page actions). */
+  actions?: React.ReactNode
+  onMenuClick?: () => void
+  /** Max width of the centred header content; matches the page container. */
+  containerClassName?: string
 }
 
-export function AppHeader({ title, description }: AppHeaderProps) {
+export function AppHeader({ title, description, actions, onMenuClick, containerClassName }: AppHeaderProps) {
   const me = useCurrentUser()
+
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-background px-6">
-      <div>
-        <h1 className="text-xl font-semibold text-foreground">{title}</h1>
-        {description && (
-          <p className="text-sm text-muted-foreground">{description}</p>
+    <header className="sticky top-0 z-30 border-b border-border bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/70">
+      <div className={cn("mx-auto flex h-16 w-full items-center gap-3 px-4 sm:px-6 lg:px-8", containerClassName ?? "max-w-6xl")}>
+        {onMenuClick && (
+          <Button variant="ghost" size="icon" className="-ml-2 lg:hidden" onClick={onMenuClick} aria-label="Open menu">
+            <Menu className="h-5 w-5" />
+          </Button>
         )}
-      </div>
-      <div className="flex items-center gap-2">
-        <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
-          <HelpCircle className="h-5 w-5" />
-        </Button>
-        <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
-          <Bell className="h-5 w-5" />
-        </Button>
+        <div className="min-w-0 flex-1">
+          <h1 className="truncate text-lg font-semibold tracking-tight text-foreground">{title}</h1>
+          {description && <p className="hidden truncate text-xs text-muted-foreground sm:block">{description}</p>}
+        </div>
+        {actions && <div className="hidden items-center gap-2 md:flex">{actions}</div>}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
-              <User className="h-5 w-5" />
-            </Button>
+            <button
+              className="flex h-8 w-8 items-center justify-center rounded-full bg-accent/20 text-xs font-semibold text-accent ring-1 ring-accent/30 transition hover:bg-accent/30"
+              aria-label="Account menu"
+            >
+              {initials(me?.email)}
+            </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuLabel className="truncate">{me?.email ?? "My Account"}</DropdownMenuLabel>
+            <DropdownMenuLabel className="font-normal">
+              <p className="truncate text-sm font-medium">{me?.email ?? "My account"}</p>
+              <p className="text-xs text-muted-foreground">{me?.role === "ADMIN" ? "Administrator" : "User"}</p>
+            </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
-              <Link href="/account">Account &amp; password</Link>
+              <Link href="/account" className="gap-2">
+                <UserCircle className="h-4 w-4" />
+                Account &amp; password
+              </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onSelect={signOut}>Sign out</DropdownMenuItem>
+            <DropdownMenuItem onSelect={signOut} className="gap-2">
+              <LogOut className="h-4 w-4" />
+              Sign out
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+      {actions && (
+        <div className="flex flex-wrap items-center gap-2 border-t border-border px-4 py-2 sm:px-6 md:hidden">{actions}</div>
+      )}
     </header>
   )
 }

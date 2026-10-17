@@ -2,12 +2,11 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { API_URL, apiFetch, apiJson, errorMessage, useCurrentUser, type CurrentUser } from "@/lib/auth"
-import { type AnalysisResult, type HistoryEntry, historyToResult } from "@/lib/analysis"
-import { AppSidebar } from "@/components/app-sidebar"
-import { AppHeader } from "@/components/app-header"
+import { type AnalysisResult, type HistoryEntry, displayKeywords, historyToResult } from "@/lib/analysis"
+import { AppShell } from "@/components/app-shell"
+import { EmptyState, ErrorBanner, LoadingState, StatTile } from "@/components/page-parts"
 import { AnalysisList } from "@/components/analysis-list"
 import { AnalysisResultDialog } from "@/components/analysis-result-dialog"
-import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -16,7 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { AlertTriangle, KeyRound, Loader2, Lock, Search, Users, FileText } from "lucide-react"
+import { FileText, KeyRound, Loader2, Lock, Search, Share2, Users } from "lucide-react"
 
 const ALL = "__all__"
 
@@ -58,7 +57,7 @@ export default function AdminPage() {
     return analyses.filter(
       (a) =>
         (owner === ALL || a.owner === owner) &&
-        (!q || [a.keywords, a.query].some((v) => v?.toLowerCase().includes(q)))
+        (!q || [displayKeywords(a.keywords), a.query].some((v) => v?.toLowerCase().includes(q)))
     )
   }, [analyses, owner, filter])
 
@@ -92,45 +91,32 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="flex min-h-screen bg-background">
-      <AppSidebar />
-      <div className="flex-1 pl-64">
-        <AppHeader title="Administration" description="Every analysis of every user, and user management" />
-        <main className="p-6 space-y-6 max-w-5xl">
+    <AppShell title="Administration" description="Every analysis of every user, and user management">
+      <div className="space-y-6">
           {me && !isAdmin && (
-            <Card className="border-border bg-card">
-              <CardContent className="p-6 flex items-center gap-3 text-sm text-muted-foreground">
-                <Lock className="h-4 w-4" />
-                This page is only available to administrators.
-              </CardContent>
-            </Card>
+            <EmptyState icon={Lock} title="Administrators only" description="This page is only available to administrators." />
           )}
 
-          {isAdmin && isLoading && (
-            <div className="flex justify-center py-10">
-              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-            </div>
-          )}
-
-          {error && (
-            <Card className="border-red-800/50 bg-red-950/20">
-              <CardContent className="p-4 flex items-center gap-3">
-                <AlertTriangle className="h-4 w-4 text-red-400 shrink-0" />
-                <p className="text-sm text-red-400">{error}</p>
-              </CardContent>
-            </Card>
-          )}
+          {isAdmin && isLoading && <LoadingState label="Loading…" />}
+          {error && <ErrorBanner message={error} />}
 
           {isAdmin && !isLoading && !error && (
+            <>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <StatTile label="Users" value={users.length} icon={Users} />
+              <StatTile label="Analyses" value={analyses.length} icon={FileText} />
+              <StatTile label="Shared analyses" value={analyses.filter((a) => a.shared).length} icon={Share2} />
+            </div>
+
             <Tabs defaultValue="analyses" className="space-y-4">
               <TabsList className="bg-muted">
                 <TabsTrigger value="analyses" className="gap-1.5">
                   <FileText className="h-3.5 w-3.5" />
-                  All analyses ({analyses.length})
+                  All analyses
                 </TabsTrigger>
                 <TabsTrigger value="users" className="gap-1.5">
                   <Users className="h-3.5 w-3.5" />
-                  Users ({users.length})
+                  Users
                 </TabsTrigger>
               </TabsList>
 
@@ -150,10 +136,10 @@ export default function AdminPage() {
                     </SelectContent>
                   </Select>
                   <div className="relative w-72">
-                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
                     <Input
                       placeholder="Filter by technology or description…"
-                      className="pl-8 bg-input border-border text-sm"
+                      className="h-9 pl-8 bg-input border-border text-sm"
                       value={filter}
                       onChange={(e) => setFilter(e.target.value)}
                     />
@@ -162,7 +148,7 @@ export default function AdminPage() {
                 </div>
 
                 {visible.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-10">No analyses.</p>
+                  <EmptyState icon={FileText} title="No analyses" />
                 ) : (
                   <AnalysisList
                     items={visible}
@@ -178,13 +164,13 @@ export default function AdminPage() {
 
               <TabsContent value="users" className="space-y-4">
                 {resetDone && (
-                  <p className="text-sm text-green-400">Password of {resetDone} was reset.</p>
+                  <p className="text-sm text-emerald-300">Password of {resetDone} was reset.</p>
                 )}
-                <Card className="border-border bg-card">
+                <div className="overflow-hidden rounded-xl border border-border bg-card">
                   <Table>
                     <TableHeader>
-                      <TableRow>
-                        <TableHead>User</TableHead>
+                      <TableRow className="hover:bg-transparent">
+                        <TableHead className="pl-5">User</TableHead>
                         <TableHead>Role</TableHead>
                         <TableHead>Created</TableHead>
                         <TableHead className="text-right">Analyses</TableHead>
@@ -194,9 +180,12 @@ export default function AdminPage() {
                     <TableBody>
                       {users.map((u) => (
                         <TableRow key={u.id}>
-                          <TableCell className="text-foreground">{u.email}</TableCell>
+                          <TableCell className="pl-5 font-medium text-foreground">{u.email}</TableCell>
                           <TableCell>
-                            <Badge variant="outline" className="border-border font-normal">
+                            <Badge
+                              variant="outline"
+                              className={u.role === "ADMIN" ? "border-accent/40 text-accent font-normal" : "border-border font-normal"}
+                            >
                               {u.role === "ADMIN" ? "Admin" : "User"}
                             </Badge>
                           </TableCell>
@@ -204,7 +193,7 @@ export default function AdminPage() {
                             {u.createdAt ? new Date(u.createdAt).toLocaleDateString("pt-PT") : "—"}
                           </TableCell>
                           <TableCell className="text-right">{u.analyses}</TableCell>
-                          <TableCell className="text-right">
+                          <TableCell className="text-right pr-4">
                             <Button
                               variant="ghost"
                               size="sm"
@@ -224,11 +213,11 @@ export default function AdminPage() {
                       ))}
                     </TableBody>
                   </Table>
-                </Card>
+                </div>
               </TabsContent>
             </Tabs>
+            </>
           )}
-        </main>
       </div>
 
       <AnalysisResultDialog
@@ -276,6 +265,6 @@ export default function AdminPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </AppShell>
   )
 }

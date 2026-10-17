@@ -106,7 +106,7 @@ export default function ResearchPage() {
   return (
     <div className="flex min-h-screen bg-background">
       <AppSidebar />
-      <div className="flex-1 pl-64">
+      <div className="flex-1 lg:pl-64">
         <AppHeader
           title="Research"
           description="Search and discover security articles via SerpApi (Google Scholar)"

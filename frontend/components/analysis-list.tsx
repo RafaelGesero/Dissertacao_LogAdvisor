@@ -1,9 +1,9 @@
 "use client"
 
-import { type AnalysisResult, modeInfo } from "@/lib/analysis"
-import { Card, CardContent } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Code2, Clock, ChevronRight, Trash2, Share2, User } from "lucide-react"
+import { type AnalysisResult, displayKeywords, modeInfo } from "@/lib/analysis"
+import { ToneBadge } from "@/components/page-parts"
+import { ChevronRight, Trash2, Share2, User, Clock } from "lucide-react"
+import { cn } from "@/lib/utils"
 
 type Props = {
   items: AnalysisResult[]
@@ -15,68 +15,68 @@ type Props = {
 
 export function AnalysisList({ items, onOpen, onDelete, showOwner, showShared = true }: Props) {
   return (
-    <div className="space-y-2">
+    <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
       {items.map((entry, i) => {
         const m = modeInfo(entry.mode)
         return (
-          <Card
-            key={entry.historyId ?? i}
-            className="border-border bg-card hover:bg-muted/40 transition-colors cursor-pointer"
-            onClick={() => onOpen(entry)}
-          >
-            <CardContent className="flex items-center justify-between p-4">
-              <div className="flex items-center gap-4 min-w-0">
-                <div className="rounded-md bg-accent/10 p-2 shrink-0">
-                  <Code2 className="h-4 w-4 text-accent" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-foreground truncate">{entry.keywords}</p>
-                  <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground mt-0.5">
-                    {showOwner && entry.owner && (
-                      <span className="flex items-center gap-1">
-                        <User className="h-3 w-3" />
-                        {entry.owner}
-                      </span>
-                    )}
+          <li key={entry.historyId ?? i}>
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => onOpen(entry)}
+              onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && onOpen(entry)}
+              className="group flex cursor-pointer items-center gap-4 px-4 py-3.5 transition-colors hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-none sm:px-5"
+            >
+              <div className={cn("hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg border sm:flex", m.tone)}>
+                <m.Icon className="h-4 w-4" />
+              </div>
+
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium text-foreground">{displayKeywords(entry.keywords)}</p>
+                {entry.query && <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{entry.query}</p>}
+                <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+                  <ToneBadge tone={m.tone} icon={m.Icon}>
+                    {m.short}
+                  </ToneBadge>
+                  {showShared && entry.shared && (
+                    <ToneBadge tone="text-accent bg-accent/10 border-accent/30" icon={Share2}>
+                      Shared
+                    </ToneBadge>
+                  )}
+                  {showOwner && entry.owner && (
+                    <span className="flex items-center gap-1">
+                      <User className="h-3 w-3" />
+                      {entry.owner}
+                    </span>
+                  )}
+                  {entry.createdAt && (
                     <span className="flex items-center gap-1">
                       <Clock className="h-3 w-3" />
                       {entry.createdAt}
                     </span>
-                    <Badge variant="outline" className="border-border font-normal gap-1 py-0">
-                      <m.Icon className="h-3 w-3" />
-                      {m.short}
-                    </Badge>
-                    {showShared && entry.shared && (
-                      <Badge variant="outline" className="border-accent/40 text-accent font-normal gap-1 py-0">
-                        <Share2 className="h-3 w-3" />
-                        Shared
-                      </Badge>
-                    )}
-                  </div>
-                  {entry.query && (
-                    <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{entry.query}</p>
                   )}
                 </div>
               </div>
-              <div className="flex items-center gap-2 shrink-0 ml-4">
-                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+
+              <div className="flex shrink-0 items-center gap-1">
                 {onDelete && (
                   <button
                     onClick={(e) => {
                       e.stopPropagation()
                       onDelete(entry)
                     }}
-                    className="p-1 rounded text-muted-foreground hover:text-red-400 hover:bg-red-950/30 transition-colors"
+                    className="rounded-md p-1.5 text-muted-foreground opacity-100 transition hover:bg-red-500/10 hover:text-red-400 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
                     title="Delete analysis"
                   >
-                    <Trash2 className="h-3.5 w-3.5" />
+                    <Trash2 className="h-4 w-4" />
                   </button>
                 )}
+                <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </li>
         )
       })}
-    </div>
+    </ul>
   )
 }

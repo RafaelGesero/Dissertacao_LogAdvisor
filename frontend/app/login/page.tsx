@@ -3,11 +3,11 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { errorMessage, setToken } from "@/lib/auth"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { ShieldCheck, Loader2, AlertTriangle } from "lucide-react"
+import { Shield, Loader2, AlertTriangle } from "lucide-react"
+import { cn } from "@/lib/utils"
 
 export default function LoginPage() {
   const router = useRouter()
@@ -48,25 +48,47 @@ export default function LoginPage() {
     }
   }
 
-  return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <Card className="w-full max-w-sm border-border bg-card">
-        <CardHeader className="text-center space-y-2 pb-4">
-          <div className="flex justify-center">
-            <div className="rounded-full bg-accent/10 p-3">
-              <ShieldCheck className="h-6 w-6 text-accent" />
-            </div>
-          </div>
-          <CardTitle className="text-foreground text-xl">LoggingAdvisor</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            {mode === "login" ? "Inicia sessão para continuar" : "Cria uma conta"}
-          </p>
-        </CardHeader>
+  const switchMode = (next: "login" | "register") => {
+    setMode(next)
+    setError(null)
+    setConfirm("")
+  }
 
-        <CardContent>
+  return (
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background p-4">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,var(--color-accent)_0%,transparent_55%)] opacity-20"
+      />
+      <div className="relative w-full max-w-sm">
+        <div className="mb-8 flex flex-col items-center text-center">
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-accent/15 ring-1 ring-accent/40">
+            <Shield className="h-6 w-6 text-accent" />
+          </div>
+          <h1 className="mt-4 text-2xl font-semibold tracking-tight text-foreground">LoggingAdvisor</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Recomendações de logging seguro para a tua aplicação</p>
+        </div>
+
+        <div className="rounded-2xl border border-border bg-card/90 p-6 shadow-xl shadow-black/30 backdrop-blur">
+          <div className="mb-6 grid grid-cols-2 gap-1 rounded-lg bg-muted p-1">
+            {(["login", "register"] as const).map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => switchMode(m)}
+                className={cn(
+                  "rounded-md py-1.5 text-sm font-medium transition-colors",
+                  mode === m ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {m === "login" ? "Entrar" : "Criar conta"}
+              </button>
+            ))}
+          </div>
+
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1.5">
-              <Label htmlFor="email" className="text-foreground text-sm">
+              <Label htmlFor="email" className="text-sm text-foreground">
                 Nome de utilizador
               </Label>
               <Input
@@ -77,7 +99,7 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="bg-input border-border text-foreground"
+                className="h-10 border-border bg-input text-foreground"
                 placeholder="ex.: rafael"
               />
               {mode === "register" && (
@@ -86,7 +108,7 @@ export default function LoginPage() {
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="password" className="text-foreground text-sm">Password</Label>
+              <Label htmlFor="password" className="text-sm text-foreground">Password</Label>
               <Input
                 id="password"
                 type="password"
@@ -94,17 +116,15 @@ export default function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                className="bg-input border-border text-foreground"
+                className="h-10 border-border bg-input text-foreground"
                 placeholder="••••••••"
               />
-              {mode === "register" && (
-                <p className="text-xs text-muted-foreground">Mínimo de 5 caracteres.</p>
-              )}
+              {mode === "register" && <p className="text-xs text-muted-foreground">Mínimo de 5 caracteres.</p>}
             </div>
 
             {mode === "register" && (
               <div className="space-y-1.5">
-                <Label htmlFor="confirm" className="text-foreground text-sm">Confirmar password</Label>
+                <Label htmlFor="confirm" className="text-sm text-foreground">Confirmar password</Label>
                 <Input
                   id="confirm"
                   type="password"
@@ -112,40 +132,29 @@ export default function LoginPage() {
                   value={confirm}
                   onChange={(e) => setConfirm(e.target.value)}
                   required
-                  className="bg-input border-border text-foreground"
+                  className="h-10 border-border bg-input text-foreground"
                   placeholder="••••••••"
                 />
               </div>
             )}
 
             {error && (
-              <div className="flex items-center gap-2 text-sm text-red-400 bg-red-950/20 border border-red-800/30 rounded-md p-3">
-                <AlertTriangle className="h-4 w-4 shrink-0" />
+              <div className="flex items-start gap-2 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
                 {error}
               </div>
             )}
 
             <Button
               type="submit"
-              className="w-full bg-accent text-accent-foreground hover:bg-accent/90"
+              className="h-10 w-full bg-accent text-accent-foreground hover:bg-accent/90"
               disabled={loading}
             >
-              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : mode === "login" ? "Entrar" : "Registar"}
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : mode === "login" ? "Entrar" : "Criar conta"}
             </Button>
-
-            <p className="text-center text-sm text-muted-foreground">
-              {mode === "login" ? "Não tens conta? " : "Já tens conta? "}
-              <button
-                type="button"
-                className="text-accent hover:underline"
-                onClick={() => { setMode(mode === "login" ? "register" : "login"); setError(null); setConfirm("") }}
-              >
-                {mode === "login" ? "Registar" : "Entrar"}
-              </button>
-            </p>
           </form>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   )
 }

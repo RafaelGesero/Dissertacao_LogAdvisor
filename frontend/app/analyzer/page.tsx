@@ -75,7 +75,7 @@ export default function AnalyzerPage() {
   return (
     <div className="flex min-h-screen bg-background">
       <AppSidebar />
-      <div className="flex-1 pl-64">
+      <div className="flex-1 lg:pl-64">
         <AppHeader
           title="Application Analyzer"
           description="Configure your application details for security analysis"

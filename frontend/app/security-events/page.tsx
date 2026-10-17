@@ -110,7 +110,7 @@ export default function SecurityEventsPage() {
   return (
     <div className="flex min-h-screen bg-background">
       <AppSidebar />
-      <div className="flex-1 pl-64">
+      <div className="flex-1 lg:pl-64">
         <AppHeader
           title="Security Events"
           description="Mandatory logging events based on security standards"

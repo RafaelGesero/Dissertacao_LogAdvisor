@@ -73,6 +73,8 @@ export const SEARCH_MODES: {
   short: string
   description: string
   Icon: ElementType
+  /** Badge/icon colours for this mode. */
+  tone: string
 }[] = [
   {
     value: "RULES",
@@ -80,6 +82,7 @@ export const SEARCH_MODES: {
     short: "Rules file",
     description: "Uses the rules built from the 28 articles of the dissertation bibliography.",
     Icon: BookOpen,
+    tone: "text-sky-300 bg-sky-500/10 border-sky-500/25",
   },
   {
     value: "KB",
@@ -87,6 +90,7 @@ export const SEARCH_MODES: {
     short: "KB",
     description: "Uses only the articles already stored in the knowledge base.",
     Icon: Database,
+    tone: "text-emerald-300 bg-emerald-500/10 border-emerald-500/25",
   },
   {
     value: "KB_WITH_NEW",
@@ -94,9 +98,18 @@ export const SEARCH_MODES: {
     short: "KB + new",
     description: "Finds 5–10 new articles, adds them to the knowledge base, then uses the whole base.",
     Icon: Globe,
+    tone: "text-amber-300 bg-amber-500/10 border-amber-500/25",
   },
 ]
 
 export function modeInfo(mode: SearchMode | undefined) {
   return SEARCH_MODES.find((m) => m.value === mode) ?? SEARCH_MODES[2]
+}
+
+/** Older analyses stored the fixed search terms with the keywords; they are noise in titles. */
+const FIXED_SEARCH_TERMS = /\s*security logging data protection information security\s*$/i
+
+export function displayKeywords(keywords: string | undefined): string {
+  const k = (keywords ?? "").replace(FIXED_SEARCH_TERMS, "").trim()
+  return k || "Analysis"
 }

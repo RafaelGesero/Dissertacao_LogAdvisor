@@ -182,7 +182,7 @@ export default function LogSuggestionsPage() {
   return (
     <div className="flex min-h-screen bg-background">
       <AppSidebar />
-      <div className="flex-1 pl-64">
+      <div className="flex-1 lg:pl-64">
         <AppHeader
           title="Log Suggestions"
           description="Recommended log formats and insertion points"

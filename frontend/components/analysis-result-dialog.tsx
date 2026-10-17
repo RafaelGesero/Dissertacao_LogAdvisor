@@ -2,7 +2,8 @@
 
 import { useState, type ElementType } from "react"
 import { API_URL, apiJson, errorMessage } from "@/lib/auth"
-import { type AnalysisResult, modeInfo } from "@/lib/analysis"
+import { type AnalysisResult, displayKeywords, modeInfo } from "@/lib/analysis"
+import { ToneBadge } from "@/components/page-parts"
 import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -60,7 +61,7 @@ function TextPanel({ text, empty }: { text: string; empty: string }) {
     return <p className="text-sm text-muted-foreground text-center py-10">{empty}</p>
   }
   return (
-    <p className="text-sm text-foreground bg-muted/50 rounded-md p-4 border border-border leading-relaxed whitespace-pre-line">
+    <p className="text-sm text-foreground bg-muted/40 rounded-lg p-5 border border-border leading-7 whitespace-pre-line">
       {text}
     </p>
   )
@@ -122,20 +123,19 @@ export function AnalysisResultDialog({ result, open, onOpenChange, canShare, sho
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="max-w-3xl bg-card border-border text-foreground flex flex-col gap-0 p-0"
-        style={{ maxHeight: "85vh" }}
+        className="w-[calc(100vw-2rem)] max-w-4xl sm:max-w-4xl bg-card border-border text-foreground flex flex-col gap-0 p-0 overflow-hidden"
+        style={{ maxHeight: "88vh" }}
       >
         <DialogHeader className="px-6 pt-6 pb-4 border-b border-border shrink-0 space-y-3">
           <DialogTitle className="flex items-center gap-2 text-foreground pr-6">
             <Code2 className="h-5 w-5 text-accent shrink-0" />
-            <span className="truncate">{result?.keywords || "Analysis Results"}</span>
+            <span className="truncate">{result ? displayKeywords(result.keywords) : "Analysis Results"}</span>
           </DialogTitle>
           {result && (
             <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-              <Badge variant="outline" className="border-border gap-1 font-normal">
-                <mode.Icon className="h-3 w-3" />
+              <ToneBadge tone={mode.tone} icon={mode.Icon}>
                 {mode.title}
-              </Badge>
+              </ToneBadge>
               {showOwner && result.owner && (
                 <span className="flex items-center gap-1">
                   <User className="h-3 w-3" />
@@ -148,7 +148,7 @@ export function AnalysisResultDialog({ result, open, onOpenChange, canShare, sho
                 <label className="ml-auto flex items-center gap-2 cursor-pointer select-none">
                   <Share2 className="h-3.5 w-3.5" />
                   <span className="text-foreground">Share with other users</span>
-                  <Switch checked={result.shared} disabled={saving} onCheckedChange={toggleShare} />
+                  <Switch checked={result.shared} disabled={saving} onCheckedChange={toggleShare} className="data-[state=checked]:bg-accent" />
                 </label>
               )}
               {!canShare && result.shared && (

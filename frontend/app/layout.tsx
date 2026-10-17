@@ -4,12 +4,12 @@ import { Analytics } from '@vercel/analytics/next'
 import { AuthGuard } from '@/components/auth-guard'
 import './globals.css'
 
-const _geist = Geist({ subsets: ["latin"] });
-const _geistMono = Geist_Mono({ subsets: ["latin"] });
+const geist = Geist({ subsets: ["latin"], variable: "--font-geist" })
+const geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono" })
 
 export const metadata: Metadata = {
   title: 'LoggingAdvisor',
-  description: 'Analyze your applications and get security logging recommendations based on industry standards',
+  description: 'Security logging recommendations for your application, based on academic research',
   generator: 'v0.app',
   icons: {
     icon: [
@@ -36,8 +36,8 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className="bg-background">
-      <body className="font-sans antialiased">
+    <html lang="en" className={`dark bg-background ${geist.variable} ${geistMono.variable}`}>
+      <body className="font-sans antialiased bg-background text-foreground">
         <AuthGuard>{children}</AuthGuard>
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>

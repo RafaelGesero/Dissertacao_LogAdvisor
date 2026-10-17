@@ -21,7 +21,7 @@ export default function SettingsPage() {
   return (
     <div className="flex min-h-screen bg-background">
       <AppSidebar />
-      <div className="flex-1 pl-64">
+      <div className="flex-1 lg:pl-64">
         <AppHeader title="Settings" description="Manage your preferences" />
         <main className="p-6">
           <Tabs defaultValue="profile" className="space-y-6">

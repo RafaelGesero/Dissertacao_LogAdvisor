@@ -2,10 +2,8 @@
 
 import { useEffect, useState } from "react"
 import { apiFetch } from "@/lib/auth"
-import { AppSidebar } from "@/components/app-sidebar"
-import { AppHeader } from "@/components/app-header"
-import { Card, CardContent } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
+import { AppShell } from "@/components/app-shell"
+import { EmptyState, ErrorBanner, LoadingState, StatTile } from "@/components/page-parts"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -34,6 +32,7 @@ import {
   FileText,
   Loader2,
   AlertTriangle,
+  Layers,
   Search,
   RefreshCw,
   Database,
@@ -61,53 +60,40 @@ function groupByTechnology(articles: Article[]): Record<string, Article[]> {
   }, {} as Record<string, Article[]>)
 }
 
-function ArticleCard({ article, onDelete }: { article: Article; onDelete: (id: number) => void }) {
+function ArticleRow({ article, onDelete }: { article: Article; onDelete: (id: number) => void }) {
   return (
-    <Card className="border-border bg-card">
-      <CardContent className="p-4 flex items-start gap-4">
-        <div className="rounded-md bg-accent/10 p-2 shrink-0 mt-0.5">
-          <FileText className="h-4 w-4 text-accent" />
-        </div>
-        <div className="flex-1 min-w-0 space-y-1.5">
-          <p className="text-sm font-medium text-foreground leading-snug">
-            {article.title || "Untitled"}
-          </p>
-          {article.publication && (
-            <Badge
-              variant="outline"
-              className="border-border text-muted-foreground text-xs font-normal"
-            >
-              {article.publication}
-            </Badge>
-          )}
-          {article.snippet && (
-            <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
-              {article.snippet}
-            </p>
-          )}
-        </div>
-        <div className="flex items-center gap-2 shrink-0 mt-0.5">
-          {article.link && (
-            <a
-              href={article.link}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-muted-foreground hover:text-accent transition-colors"
-              title="Open article"
-            >
-              <ExternalLink className="h-4 w-4" />
-            </a>
-          )}
-          <button
-            onClick={() => onDelete(article.id)}
-            className="p-1 rounded text-muted-foreground hover:text-red-400 hover:bg-red-950/30 transition-colors"
-            title="Delete article"
+    <li className="group flex items-start gap-4 px-4 py-4 transition-colors hover:bg-muted/30 sm:px-5">
+      <div className="mt-0.5 hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent/10 sm:flex">
+        <FileText className="h-4 w-4 text-accent" />
+      </div>
+      <div className="min-w-0 flex-1 space-y-1">
+        <p className="text-sm font-medium leading-snug text-foreground">{article.title || "Untitled"}</p>
+        {article.publication && <p className="truncate text-xs text-muted-foreground">{article.publication}</p>}
+        {article.snippet && (
+          <p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground/90">{article.snippet}</p>
+        )}
+      </div>
+      <div className="flex shrink-0 items-center gap-1">
+        {article.link && (
+          <a
+            href={article.link}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-accent"
+            title="Open article"
           >
-            <Trash2 className="h-3.5 w-3.5" />
-          </button>
-        </div>
-      </CardContent>
-    </Card>
+            <ExternalLink className="h-4 w-4" />
+          </a>
+        )}
+        <button
+          onClick={() => onDelete(article.id)}
+          className="rounded-md p-1.5 text-muted-foreground transition hover:bg-red-500/10 hover:text-red-400 sm:opacity-0 sm:group-hover:opacity-100"
+          title="Delete article"
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
+      </div>
+    </li>
   )
 }
 
@@ -212,138 +198,102 @@ export default function KnowledgeBasePage() {
     }
   }
 
+  const actions = (
+    <>
+      <Button
+        variant="outline"
+        size="sm"
+        className="h-8 gap-1.5 border-border text-muted-foreground hover:text-foreground"
+        onClick={fetchArticles}
+        disabled={isLoading}
+      >
+        <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? "animate-spin" : ""}`} />
+        Refresh
+      </Button>
+      <Button
+        suppressHydrationWarning
+        variant="outline"
+        size="sm"
+        className="h-8 gap-1.5 border-red-500/40 text-red-400 hover:bg-red-500/10 hover:text-red-300"
+        onClick={() => setClearOpen(true)}
+        disabled={articles.length === 0 || isLoading}
+      >
+        <Trash2 className="h-3.5 w-3.5" />
+        Clear KB
+      </Button>
+      <Button
+        size="sm"
+        className="h-8 gap-1.5 bg-accent text-accent-foreground hover:bg-accent/90"
+        onClick={handleOpenAdd}
+      >
+        <Plus className="h-3.5 w-3.5" />
+        Add Article
+      </Button>
+    </>
+  )
+
   return (
-    <div className="flex min-h-screen bg-background">
-      <AppSidebar />
-      <div className="flex-1 pl-64">
-        <AppHeader
-          title="Knowledge Base"
-          description="All academic articles currently indexed in Chroma"
-        />
-
-        <main className="p-6 space-y-6 max-w-5xl">
-          {/* Stats + controls */}
-          <div className="flex items-center justify-between gap-4 flex-wrap">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Database className="h-4 w-4 text-accent" />
-              {isLoading ? (
-                <span>Loading…</span>
-              ) : (
-                <span>
-                  <span className="font-semibold text-foreground">{articles.length}</span>{" "}
-                  {articles.length === 1 ? "article" : "articles"} indexed
-                  {filtered.length !== articles.length && (
-                    <> &mdash; showing{" "}
-                      <span className="font-semibold text-foreground">{filtered.length}</span>
-                    </>
-                  )}
-                </span>
-              )}
-            </div>
-
-            <div className="flex items-center gap-2">
-              <div className="relative">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                <Input
-                  placeholder="Filter articles…"
-                  className="pl-8 h-8 w-56 bg-input border-border text-foreground placeholder:text-muted-foreground text-sm"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                />
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-1.5 border-border text-muted-foreground hover:text-foreground h-8"
-                onClick={fetchArticles}
-                disabled={isLoading}
-              >
-                <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? "animate-spin" : ""}`} />
-                Refresh
-              </Button>
-              <Button
-                size="sm"
-                className="gap-1.5 bg-accent text-accent-foreground hover:bg-accent/90 h-8"
-                onClick={handleOpenAdd}
-              >
-                <Plus className="h-3.5 w-3.5" />
-                Add Article
-              </Button>
-              <Button
-                suppressHydrationWarning
-                variant="outline"
-                size="sm"
-                className="gap-1.5 border-red-800/60 text-red-400 hover:bg-red-950/30 hover:text-red-300 h-8"
-                onClick={() => setClearOpen(true)}
-                disabled={articles.length === 0 || isLoading}
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-                Clear KB
-              </Button>
+    <AppShell title="Knowledge Base" description="Academic articles indexed for retrieval" actions={actions}>
+      <div className="space-y-6">
+        <div className="grid gap-4 sm:grid-cols-3">
+          <StatTile label="Articles indexed" value={isLoading ? "…" : articles.length} icon={Database} />
+          <StatTile
+            label="Technologies"
+            value={isLoading ? "…" : Object.keys(groupByTechnology(articles)).length}
+            icon={Layers}
+          />
+          <div className="flex items-center rounded-xl border border-border bg-card p-4">
+            <div className="relative w-full">
+              <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Filter by title, journal, technology…"
+                className="h-10 border-border bg-input pl-9 text-sm"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
             </div>
           </div>
+        </div>
 
-          {/* Error */}
-          {error && (
-            <Card className="border-red-800/50 bg-red-950/20">
-              <CardContent className="p-4 flex items-center gap-3">
-                <AlertTriangle className="h-4 w-4 text-red-400 shrink-0" />
-                <p className="text-sm text-red-400">{error}</p>
-              </CardContent>
-            </Card>
-          )}
+        {error && <ErrorBanner message={error} />}
+        {isLoading && <LoadingState label="Loading knowledge base…" />}
 
-          {/* Loading */}
-          {isLoading && (
-            <div className="flex items-center justify-center py-20 gap-2 text-muted-foreground">
-              <Loader2 className="h-5 w-5 animate-spin" />
-              <span className="text-sm">Loading knowledge base…</span>
-            </div>
-          )}
+        {!isLoading && !error && filtered.length === 0 && (
+          <EmptyState
+            icon={BookOpen}
+            title={articles.length === 0 ? "No articles in the knowledge base yet" : "No articles match your filter"}
+            description={
+              articles.length === 0
+                ? "Run an analysis with “KB + new articles” or add articles manually."
+                : "Try a different search term."
+            }
+          />
+        )}
 
-          {/* Empty state */}
-          {!isLoading && !error && filtered.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-20 gap-3 text-center">
-              <div className="rounded-full bg-muted p-4">
-                <BookOpen className="h-8 w-8 text-muted-foreground" />
-              </div>
-              <p className="text-sm font-medium text-foreground">
-                {articles.length === 0
-                  ? "No articles in the knowledge base yet."
-                  : "No articles match your filter."}
-              </p>
-              <p className="text-xs text-muted-foreground max-w-xs">
-                {articles.length === 0
-                  ? "Run an analysis or add articles manually using the button above."
-                  : "Try a different search term."}
-              </p>
-            </div>
-          )}
-
-          {/* Articles grouped by technology */}
-          {!isLoading && !error && technologies.length > 0 && (
-            <Tabs defaultValue={technologies[0]}>
-              <TabsList className="bg-muted flex-wrap h-auto gap-1 mb-4">
-                {technologies.map((tech) => (
-                  <TabsTrigger key={tech} value={tech} className="text-xs gap-1.5">
-                    {tech}
-                    <span className="rounded-full bg-accent/20 text-accent px-1.5 py-0 text-[10px] font-semibold leading-4">
-                      {grouped[tech].length}
-                    </span>
-                  </TabsTrigger>
-                ))}
-              </TabsList>
-
+        {!isLoading && !error && technologies.length > 0 && (
+          <Tabs defaultValue={technologies[0]} key={technologies.join("|")}>
+            <TabsList className="mb-4 h-auto flex-wrap gap-1 bg-muted p-1">
               {technologies.map((tech) => (
-                <TabsContent key={tech} value={tech} className="mt-0 space-y-3">
-                  {grouped[tech].map((article) => (
-                    <ArticleCard key={article.id} article={article} onDelete={handleDeleteArticle} />
-                  ))}
-                </TabsContent>
+                <TabsTrigger key={tech} value={tech} className="gap-1.5 text-xs">
+                  {tech}
+                  <span className="rounded-full bg-accent/20 px-1.5 text-[10px] font-semibold leading-4 text-accent">
+                    {grouped[tech].length}
+                  </span>
+                </TabsTrigger>
               ))}
-            </Tabs>
-          )}
-        </main>
+            </TabsList>
+
+            {technologies.map((tech) => (
+              <TabsContent key={tech} value={tech} className="mt-0">
+                <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
+                  {grouped[tech].map((article) => (
+                    <ArticleRow key={article.id} article={article} onDelete={handleDeleteArticle} />
+                  ))}
+                </ul>
+              </TabsContent>
+            ))}
+          </Tabs>
+        )}
       </div>
 
       {/* Clear KB confirmation */}
@@ -475,6 +425,6 @@ export default function KnowledgeBasePage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </AppShell>
   )
 }
