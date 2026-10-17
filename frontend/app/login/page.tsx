@@ -55,7 +55,7 @@ export default function LoginPage() {
               <ShieldCheck className="h-6 w-6 text-accent" />
             </div>
           </div>
-          <CardTitle className="text-foreground text-xl">LogAdvisor</CardTitle>
+          <CardTitle className="text-foreground text-xl">LoggingAdvisor</CardTitle>
           <p className="text-sm text-muted-foreground">
             {mode === "login" ? "Inicia sessão para continuar" : "Cria uma conta"}
           </p>

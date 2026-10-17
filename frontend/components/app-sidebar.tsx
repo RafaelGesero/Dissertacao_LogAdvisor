@@ -29,7 +29,7 @@ export function AppSidebar() {
         {/* Logo */}
         <div className="flex h-16 items-center gap-2 border-b border-border px-6">
           <Shield className="h-6 w-6 text-accent" />
-          <span className="text-lg font-semibold text-foreground">LogAdvisor</span>
+          <span className="text-lg font-semibold text-foreground">LoggingAdvisor</span>
         </div>
 
         {/* Navigation */}

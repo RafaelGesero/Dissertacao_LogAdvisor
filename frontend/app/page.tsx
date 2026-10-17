@@ -171,7 +171,7 @@ export default function HomePage() {
 
       <div className="flex-1 pl-64">
         <AppHeader
-          title="LogAdvisor"
+          title="LoggingAdvisor"
           description="Describe your application to get security logging recommendations"
         />
 
