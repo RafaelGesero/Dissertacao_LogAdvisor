@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { setToken } from "@/lib/auth"
+import { errorMessage, setToken } from "@/lib/auth"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -14,13 +14,18 @@ export default function LoginPage() {
   const [mode, setMode] = useState<"login" | "register">("login")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [confirm, setConfirm] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setLoading(true)
     setError(null)
+    if (mode === "register") {
+      if (password.length < 8) return setError("A password tem de ter pelo menos 8 caracteres.")
+      if (password !== confirm) return setError("As passwords não coincidem.")
+    }
+    setLoading(true)
 
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/${mode}`, {
@@ -30,10 +35,7 @@ export default function LoginPage() {
       })
 
       if (!res.ok) {
-        const msg = mode === "register" && res.status === 409
-          ? "Email já registado."
-          : "Credenciais inválidas."
-        throw new Error(msg)
+        throw new Error(await errorMessage(res, mode === "login" ? "Credenciais inválidas." : "Não foi possível criar a conta."))
       }
 
       const data = await res.json()
@@ -64,15 +66,18 @@ export default function LoginPage() {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1.5">
-              <Label htmlFor="email" className="text-foreground text-sm">Utilizador / Email</Label>
+              <Label htmlFor="email" className="text-foreground text-sm">
+                {mode === "login" ? "Utilizador / Email" : "Email"}
+              </Label>
               <Input
                 id="email"
-                type="text"
+                type={mode === "login" ? "text" : "email"}
+                autoComplete={mode === "login" ? "username" : "email"}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 className="bg-input border-border text-foreground"
-                placeholder="admin ou email@exemplo.com"
+                placeholder={mode === "login" ? "admin ou email@exemplo.com" : "email@exemplo.com"}
               />
             </div>
 
@@ -81,13 +86,33 @@ export default function LoginPage() {
               <Input
                 id="password"
                 type="password"
+                autoComplete={mode === "login" ? "current-password" : "new-password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 className="bg-input border-border text-foreground"
                 placeholder="••••••••"
               />
+              {mode === "register" && (
+                <p className="text-xs text-muted-foreground">Mínimo de 8 caracteres.</p>
+              )}
             </div>
+
+            {mode === "register" && (
+              <div className="space-y-1.5">
+                <Label htmlFor="confirm" className="text-foreground text-sm">Confirmar password</Label>
+                <Input
+                  id="confirm"
+                  type="password"
+                  autoComplete="new-password"
+                  value={confirm}
+                  onChange={(e) => setConfirm(e.target.value)}
+                  required
+                  className="bg-input border-border text-foreground"
+                  placeholder="••••••••"
+                />
+              </div>
+            )}
 
             {error && (
               <div className="flex items-center gap-2 text-sm text-red-400 bg-red-950/20 border border-red-800/30 rounded-md p-3">
@@ -109,7 +134,7 @@ export default function LoginPage() {
               <button
                 type="button"
                 className="text-accent hover:underline"
-                onClick={() => { setMode(mode === "login" ? "register" : "login"); setError(null) }}
+                onClick={() => { setMode(mode === "login" ? "register" : "login"); setError(null); setConfirm("") }}
               >
                 {mode === "login" ? "Registar" : "Entrar"}
               </button>

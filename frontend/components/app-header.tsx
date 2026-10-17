@@ -1,6 +1,8 @@
 "use client"
 
+import Link from "next/link"
 import { Bell, HelpCircle, User } from "lucide-react"
+import { signOut, useCurrentUser } from "@/lib/auth"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -17,6 +19,7 @@ interface AppHeaderProps {
 }
 
 export function AppHeader({ title, description }: AppHeaderProps) {
+  const me = useCurrentUser()
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-background px-6">
       <div>
@@ -39,12 +42,13 @@ export function AppHeader({ title, description }: AppHeaderProps) {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuLabel>My Account</DropdownMenuLabel>
+            <DropdownMenuLabel className="truncate">{me?.email ?? "My Account"}</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>Profile</DropdownMenuItem>
-            <DropdownMenuItem>Settings</DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link href="/account">Account &amp; password</Link>
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>Sign out</DropdownMenuItem>
+            <DropdownMenuItem onSelect={signOut}>Sign out</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

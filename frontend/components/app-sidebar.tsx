@@ -4,24 +4,36 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
   LayoutDashboard,
-  Settings,
   Shield,
   Database,
+  Share2,
+  ShieldCheck,
+  UserCircle,
+  LogOut,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { signOut, useCurrentUser } from "@/lib/auth"
 
-const navigation = [
+const baseNavigation = [
   {
     title: "Overview",
     items: [
       { name: "Start", href: "/", icon: LayoutDashboard },
+      { name: "Shared Analyses", href: "/shared", icon: Share2 },
       { name: "Knowledge Base", href: "/knowledge-base", icon: Database },
     ],
   },
 ]
 
+const adminNavigation = {
+  title: "Administration",
+  items: [{ name: "All Analyses & Users", href: "/admin", icon: ShieldCheck }],
+}
+
 export function AppSidebar() {
   const pathname = usePathname()
+  const me = useCurrentUser()
+  const navigation = me?.role === "ADMIN" ? [...baseNavigation, adminNavigation] : baseNavigation
 
   return (
     <aside className="fixed left-0 top-0 z-40 h-screen w-64 border-r border-border bg-sidebar">
@@ -64,15 +76,27 @@ export function AppSidebar() {
           ))}
         </nav>
 
-        {/* Settings */}
-        <div className="border-t border-border p-4">
+        {/* Account */}
+        <div className="border-t border-border p-4 space-y-1">
           <Link
-            href="/settings"
-            className="flex items-center gap-3 rounded-md px-2 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+            href="/account"
+            className={cn(
+              "flex items-center gap-3 rounded-md px-2 py-2 text-sm font-medium transition-colors",
+              pathname === "/account"
+                ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                : "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+            )}
           >
-            <Settings className="h-4 w-4" />
-            Settings
+            <UserCircle className="h-4 w-4 shrink-0" />
+            <span className="truncate">{me?.email ?? "Account"}</span>
           </Link>
+          <button
+            onClick={signOut}
+            className="flex w-full items-center gap-3 rounded-md px-2 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+          >
+            <LogOut className="h-4 w-4" />
+            Sign out
+          </button>
         </div>
       </div>
     </aside>

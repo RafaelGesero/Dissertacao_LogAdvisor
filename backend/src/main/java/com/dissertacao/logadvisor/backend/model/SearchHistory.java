@@ -7,6 +7,8 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -23,6 +25,16 @@ public class SearchHistory {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @ManyToOne
+    @JoinColumn(name = "user_id")
+    private User user;
+
+    /** Visible to every user on the shared analyses page. Nullable for rows created before sharing existed. */
+    private Boolean shared;
+
+    @Column(length = 20)
+    private String mode;
+
     private String keywords;
 
     @Column(columnDefinition = "TEXT")
@@ -34,6 +46,12 @@ public class SearchHistory {
     private String logStructureJson;
 
     @Column(columnDefinition = "TEXT")
+    private String securityGuidance;
+
+    @Column(columnDefinition = "TEXT")
+    private String dataTypes;
+
+    @Column(columnDefinition = "TEXT")
     private String storageTips;
 
     @Column(columnDefinition = "TEXT")
@@ -41,4 +59,11 @@ public class SearchHistory {
 
     @Column(columnDefinition = "TEXT")
     private String articleIdsJson;
+
+    @Column(columnDefinition = "TEXT")
+    private String newArticleIdsJson;
+
+    public boolean isShared() {
+        return Boolean.TRUE.equals(shared);
+    }
 }

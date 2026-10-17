@@ -21,6 +21,9 @@ public class ChromaConfig {
     @Value("${app.groq.model}")
     private String groqModel;
 
+    @Value("${app.groq.timeout-seconds:150}")
+    private int groqTimeoutSeconds;
+
     @Value("${chroma.url}")
     private String chromaUrl;
 
@@ -34,14 +37,15 @@ public class ChromaConfig {
     }
 
     @Bean
-public ChatLanguageModel chatLanguageModel() {
-    return OpenAiChatModel.builder()
-            .baseUrl("https://api.groq.com/openai/v1")
-            .apiKey(groqApiKey)
-            .modelName(groqModel)
-            .timeout(Duration.ofSeconds(90))
-            .build();
-}
+    public ChatLanguageModel chatLanguageModel() {
+        return OpenAiChatModel.builder()
+                .baseUrl("https://api.groq.com/openai/v1")
+                .apiKey(groqApiKey)
+                .modelName(groqModel)
+                .timeout(Duration.ofSeconds(groqTimeoutSeconds))
+                .maxRetries(1) // LogAdvisorService retries rate limits itself, after the wait Groq asks for
+                .build();
+    }
 
     @Bean
     public ChromaEmbeddingStore embeddingStore() {

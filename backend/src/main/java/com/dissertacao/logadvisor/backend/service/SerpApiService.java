@@ -42,6 +42,13 @@ public class SerpApiService {
         return all;
     }
 
+    /** One page (0-based) of Google Scholar results. */
+    public List<ArticleResult> searchPage(String query, int page) {
+        List<ArticleResult> results = fetchPage(query, page * RESULTS_PER_PAGE);
+        log.info("SerpAPI página {}: {} artigos para '{}'", page + 1, results.size(), query);
+        return results;
+    }
+
     private List<ArticleResult> fetchPage(String query, int start) {
         String url = "https://serpapi.com/search.json"
                 + "?engine=google_scholar"
