@@ -13,17 +13,18 @@ import {
 import { AppShell } from "@/components/app-shell"
 import { AnalysisList } from "@/components/analysis-list"
 import { AnalysisResultDialog } from "@/components/analysis-result-dialog"
+import { SearchModeInfoDialog } from "@/components/search-mode-info-dialog"
 import { EmptyState, ErrorBanner, SectionHeader } from "@/components/page-parts"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
-import { Check, FileSearch, Loader2, Search, Sparkles } from "lucide-react"
+import { Check, FileSearch, Info, Loader2, Search, Sparkles } from "lucide-react"
 
 const MAX_DESCRIPTION = 5000
 
 const LOADING_STEPS: Record<SearchMode, string> = {
-  RULES: "Reading the rules file…",
+  RULES: "Applying the predefined rules…",
   KB: "Searching the knowledge base…",
   KB_WITH_NEW: "Looking for new articles, adding them to the knowledge base and analysing…",
 }
@@ -37,6 +38,7 @@ export default function HomePage() {
   const [resultOpen, setResultOpen] = useState(false)
   const [history, setHistory] = useState<AnalysisResult[]>([])
   const [filter, setFilter] = useState("")
+  const [infoMode, setInfoMode] = useState<SearchMode | null>(null)
 
   useEffect(() => {
     apiFetch(`${API_URL}/log/history`)
@@ -115,30 +117,51 @@ export default function HomePage() {
           <div role="radiogroup" aria-label="Search mode" className="grid gap-2 border-b border-border p-3 sm:grid-cols-3">
             {SEARCH_MODES.map((m) => {
               const selected = m.value === mode
+              const select = () => !isLoading && setMode(m.value)
               return (
-                <button
+                <div
                   key={m.value}
-                  type="button"
                   role="radio"
                   aria-checked={selected}
-                  disabled={isLoading}
-                  onClick={() => setMode(m.value)}
+                  aria-disabled={isLoading}
+                  tabIndex={0}
+                  onClick={select}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault()
+                      select()
+                    }
+                  }}
                   className={cn(
-                    "relative rounded-xl border p-3.5 text-left transition-all disabled:opacity-60",
+                    "relative cursor-pointer rounded-xl border p-3.5 pr-10 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60",
+                    isLoading && "cursor-not-allowed opacity-60",
                     selected
                       ? "border-accent/60 bg-accent/10 ring-1 ring-accent/40"
                       : "border-transparent hover:border-border hover:bg-muted/40"
                   )}
                 >
+                  <button
+                    type="button"
+                    aria-label={`How “${m.title}” works`}
+                    title={`How “${m.title}” works`}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setInfoMode(m.value)
+                    }}
+                    onKeyDown={(e) => e.stopPropagation()}
+                    className="absolute right-2.5 top-2.5 rounded-full p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  >
+                    <Info className="h-4 w-4" />
+                  </button>
                   <div className="flex items-center gap-2.5">
                     <span className={cn("flex h-7 w-7 items-center justify-center rounded-lg border", m.tone)}>
                       <m.Icon className="h-3.5 w-3.5" />
                     </span>
                     <span className="text-sm font-medium text-foreground">{m.title}</span>
-                    {selected && <Check className="ml-auto h-4 w-4 text-accent" />}
+                    {selected && <Check className="h-4 w-4 text-accent" />}
                   </div>
                   <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{m.description}</p>
-                </button>
+                </div>
               )
             })}
           </div>
@@ -220,6 +243,8 @@ export default function HomePage() {
           )}
         </section>
       </div>
+
+      <SearchModeInfoDialog mode={infoMode} onOpenChange={(open) => !open && setInfoMode(null)} />
 
       <AnalysisResultDialog
         result={activeResult}

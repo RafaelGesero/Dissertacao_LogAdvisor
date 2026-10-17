@@ -78,8 +78,8 @@ export const SEARCH_MODES: {
 }[] = [
   {
     value: "RULES",
-    title: "Rules file",
-    short: "Rules file",
+    title: "Predefined rules",
+    short: "Predefined rules",
     description: "Uses the rules built from the 28 articles of the dissertation bibliography.",
     Icon: BookOpen,
     tone: "text-sky-300 bg-sky-500/10 border-sky-500/25",

@@ -346,7 +346,7 @@ public class LogAdvisorService {
             log.warn("LLM indisponível no modo ficheiro de regras, a devolver as regras selecionadas: {}", e.getMessage());
             securityText = dataText = storageText = null;
         }
-        String fallbackNote = "(LLM unavailable: showing the rules of the file selected for this application.)\n";
+        String fallbackNote = "(LLM unavailable: showing the predefined rules selected for this application.)\n";
         if (isBlank(securityText)) securityText = fallbackNote + bullets(security);
         if (isBlank(dataText)) dataText = fallbackNote + bullets(dataTypes);
         if (isBlank(storageText)) storageText = fallbackNote + bullets(storage);
@@ -378,7 +378,7 @@ public class LogAdvisorService {
                     + "». This guidance was not studied for " + by + " in the articles.";
             case COMBINED -> "Related section («Combinar com» of " + by + "): «" + s.name()
                     + "». Evidence level of the section: " + s.evidence() + ".";
-            case FALLBACK -> "No section of the rules file recognises "
+            case FALLBACK -> "No section of the predefined rules recognises "
                     + (by.isEmpty() ? "the technologies described" : by)
                     + ", so the generic baseline is used. There is no direct evidence: derive from the closest family "
                     + "(JVM → Java; .NET → C#; dynamic server languages → Python/JavaScript/PHP; native code → C/C++; mobile → Android).";

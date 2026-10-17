@@ -317,7 +317,7 @@ export function AnalysisResultDialog({ result, open, onOpenChange, canShare, sho
                   <div className="space-y-3">
                     {result.mode === "RULES" && (
                       <p className="text-xs text-muted-foreground">
-                        Bibliography entries of the rules file cited in this analysis.
+                        Bibliography entries of the predefined rules cited in this analysis.
                       </p>
                     )}
                     {result.sources.map((source, i) => (
