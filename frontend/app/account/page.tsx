@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { AlertTriangle, CheckCircle2, KeyRound, Loader2, LogOut, User } from "lucide-react"
 
-const MIN_PASSWORD = 8
+const MIN_PASSWORD = 5
 
 export default function AccountPage() {
   const me = useCurrentUser()

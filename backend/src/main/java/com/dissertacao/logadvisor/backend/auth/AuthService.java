@@ -23,7 +23,7 @@ public class AuthService {
 
     /** A plain name ("rafael") or an email; compared in lower case. */
     private static final Pattern USERNAME = Pattern.compile("^[a-z0-9._@-]{3,50}$");
-    private static final int MIN_PASSWORD = 8;
+    private static final int MIN_PASSWORD = 5;
     private static final int MAX_PASSWORD = 128;
 
     private final UserRepository userRepository;

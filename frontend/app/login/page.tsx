@@ -22,7 +22,7 @@ export default function LoginPage() {
     e.preventDefault()
     setError(null)
     if (mode === "register") {
-      if (password.length < 8) return setError("A password tem de ter pelo menos 8 caracteres.")
+      if (password.length < 5) return setError("A password tem de ter pelo menos 5 caracteres.")
       if (password !== confirm) return setError("As passwords não coincidem.")
     }
     setLoading(true)
@@ -98,7 +98,7 @@ export default function LoginPage() {
                 placeholder="••••••••"
               />
               {mode === "register" && (
-                <p className="text-xs text-muted-foreground">Mínimo de 8 caracteres.</p>
+                <p className="text-xs text-muted-foreground">Mínimo de 5 caracteres.</p>
               )}
             </div>
 

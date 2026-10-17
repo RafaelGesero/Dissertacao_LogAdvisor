@@ -76,7 +76,7 @@ export default function AdminPage() {
   const submitReset = async () => {
     if (!resetUser) return
     setResetError(null)
-    if (newPassword.length < 8) return setResetError("The password must have at least 8 characters.")
+    if (newPassword.length < 5) return setResetError("The password must have at least 5 characters.")
     setResetting(true)
     try {
       const res = await apiJson(`${API_URL}/admin/users/${resetUser.id}/password`, "PUT", { newPassword })
