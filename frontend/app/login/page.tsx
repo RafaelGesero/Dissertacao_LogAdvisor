@@ -67,18 +67,22 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1.5">
               <Label htmlFor="email" className="text-foreground text-sm">
-                {mode === "login" ? "Utilizador / Email" : "Email"}
+                Nome de utilizador
               </Label>
               <Input
                 id="email"
-                type={mode === "login" ? "text" : "email"}
-                autoComplete={mode === "login" ? "username" : "email"}
+                type="text"
+                autoComplete="username"
+                autoCapitalize="none"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 className="bg-input border-border text-foreground"
-                placeholder={mode === "login" ? "admin ou email@exemplo.com" : "email@exemplo.com"}
+                placeholder="ex.: rafael"
               />
+              {mode === "register" && (
+                <p className="text-xs text-muted-foreground">3 a 50 caracteres: letras, números, ".", "_" ou "-".</p>
+              )}
             </div>
 
             <div className="space-y-1.5">

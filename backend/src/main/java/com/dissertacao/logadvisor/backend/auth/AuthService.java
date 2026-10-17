@@ -21,7 +21,8 @@ import org.springframework.web.server.ResponseStatusException;
 @RequiredArgsConstructor
 public class AuthService {
 
-    private static final Pattern EMAIL = Pattern.compile("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$");
+    /** A plain name ("rafael") or an email; compared in lower case. */
+    private static final Pattern USERNAME = Pattern.compile("^[a-z0-9._@-]{3,50}$");
     private static final int MIN_PASSWORD = 8;
     private static final int MAX_PASSWORD = 128;
 
@@ -32,12 +33,13 @@ public class AuthService {
 
     public AuthResponse register(AuthRequest request) {
         String email = normalize(request.getEmail());
-        if (!EMAIL.matcher(email).matches()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email inválido.");
+        if (!USERNAME.matcher(email).matches()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "O nome de utilizador tem de ter entre 3 e 50 caracteres: letras, números, '.', '_', '-' ou '@'.");
         }
         validatePassword(request.getPassword());
         if (userRepository.findByEmail(email).isPresent()) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Email já registado.");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Esse nome de utilizador já existe.");
         }
         User user = User.builder()
                 .email(email)

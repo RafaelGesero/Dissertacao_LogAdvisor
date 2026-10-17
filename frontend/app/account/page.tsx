@@ -69,7 +69,7 @@ export default function AccountPage() {
               {me ? (
                 <>
                   <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Email / user</span>
+                    <span className="text-muted-foreground">Username</span>
                     <span className="text-foreground">{me.email}</span>
                   </div>
                   <div className="flex items-center justify-between">
