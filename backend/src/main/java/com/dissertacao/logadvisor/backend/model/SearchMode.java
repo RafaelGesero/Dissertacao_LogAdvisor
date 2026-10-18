@@ -6,7 +6,7 @@ public enum SearchMode {
     RULES,
     /** 1.2 — only the articles already stored in the knowledge base. */
     KB,
-    /** 1.3 — fetch 5-10 new articles, add them to the KB, then use the whole KB. */
+    /** 1.3 — fetch up to 5 new articles per technology, add them to the KB, then use the whole KB. */
     KB_WITH_NEW;
 
     public static SearchMode parse(String value) {

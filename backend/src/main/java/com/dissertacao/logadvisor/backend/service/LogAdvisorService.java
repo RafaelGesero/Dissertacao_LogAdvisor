@@ -1,10 +1,8 @@
 package com.dissertacao.logadvisor.backend.service;
 
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
-import java.util.Deque;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -82,11 +80,8 @@ public class LogAdvisorService {
     @Value("${app.rules.prompt-budget-chars:12000}")
     private int rulesPromptBudget;
 
-    @Value("${app.kb.new-articles.min:5}")
-    private int minNewArticles;
-
-    @Value("${app.kb.new-articles.max:10}")
-    private int maxNewArticles;
+    @Value("${app.kb.new-articles.per-technology:5}")
+    private int newArticlesPerTechnology;
 
     public LogAdviceResponse getLoggingAdvice(String query, SearchMode mode) {
         LogAdviceResponse response = switch (mode) {
@@ -155,51 +150,31 @@ public class LogAdvisorService {
     }
 
     /**
-     * Mode 1.3: looks for {@code minNewArticles}-{@code maxNewArticles} Google Scholar articles that are not in
-     * the KB yet, taking them round-robin across the technologies (one page of results at a time, so SerpAPI
-     * is only called while more articles are needed), and stores them in the KB.
+     * Mode 1.3: for each technology, looks for up to {@code newArticlesPerTechnology} Google Scholar articles that
+     * are not in the KB yet and stores them in the KB. Result pages are fetched one at a time (at most
+     * {@code NEW_ARTICLES_MAX_PAGES}), so SerpAPI is only called while a technology still needs articles.
      */
     private List<ArticleResult> addNewArticlesToKb(List<String> technologies) {
-        int n = technologies.size();
-        List<Deque<ArticleResult>> queues = new ArrayList<>();
-        int[] nextPage = new int[n];
-        boolean[] exhausted = new boolean[n];
-        for (int i = 0; i < n; i++) queues.add(new ArrayDeque<>());
-
         Set<String> seen = new HashSet<>();
         List<ArticleResult> found = new ArrayList<>();
-        boolean progressed = true;
-        while (found.size() < maxNewArticles && progressed) {
-            progressed = false;
-            for (int t = 0; t < n && found.size() < maxNewArticles; t++) {
-                String tech = technologies.get(t);
-                ArticleResult next = null;
-                while (next == null && !exhausted[t]) {
-                    ArticleResult candidate = queues.get(t).poll();
-                    if (candidate == null) {
-                        if (nextPage[t] >= NEW_ARTICLES_MAX_PAGES) {
-                            exhausted[t] = true;
-                        } else {
-                            List<ArticleResult> page = serpApiService.searchPage(
-                                    tech + " " + MANDATORY_SEARCH_TERMS, nextPage[t]++);
-                            if (page.isEmpty()) exhausted[t] = true;
-                            queues.get(t).addAll(page);
-                        }
-                    } else if (isNewArticle(candidate, seen)) {
+
+        for (String tech : technologies) {
+            int forTech = 0;
+            for (int page = 0; page < NEW_ARTICLES_MAX_PAGES && forTech < newArticlesPerTechnology; page++) {
+                List<ArticleResult> results = serpApiService.searchPage(tech + " " + MANDATORY_SEARCH_TERMS, page);
+                if (results.isEmpty()) break;
+                for (ArticleResult candidate : results) {
+                    if (forTech >= newArticlesPerTechnology) break;
+                    if (isNewArticle(candidate, seen)) {
                         candidate.setTechnology(tech);
-                        next = candidate;
+                        found.add(candidate);
+                        forTech++;
                     }
                 }
-                if (next != null) {
-                    found.add(next);
-                    progressed = true;
-                }
             }
+            log.info("Novos artigos para '{}': {} (máximo {})", tech, forTech, newArticlesPerTechnology);
         }
 
-        if (found.size() < minNewArticles) {
-            log.warn("Só foram encontrados {} artigos novos (objetivo {}-{})", found.size(), minNewArticles, maxNewArticles);
-        }
         if (!found.isEmpty()) knowledgeBaseService.saveArticles(found);
         log.info("Adicionados {} artigos novos à KB", found.size());
         return found;

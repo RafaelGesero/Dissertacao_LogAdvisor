@@ -41,9 +41,9 @@ const EXPLANATIONS: Record<SearchMode, { summary: string; steps: string[]; pros:
       "Finds new articles on Google Scholar, adds them to the knowledge base and then answers using the whole knowledge base, old and new articles together.",
     steps: [
       "The AI extracts up to 4 technologies from your description.",
-      "Google Scholar is searched (via SerpAPI) for 5 to 10 articles that are not in the knowledge base yet, alternating between the technologies.",
+      "For each technology, Google Scholar is searched (via SerpAPI) for up to 5 articles that are not in the knowledge base yet.",
       "The new articles are saved in the knowledge base and listed in the Sources tab of the result.",
-      "The analysis then runs like “Knowledge base”, over every article that matches your application.",
+      "Only then is the knowledge base searched: the analysis uses every article in it (old and new) that matches the technologies of your description.",
     ],
     pros: ["Brings in recent literature", "The knowledge base grows with every search"],
     cons: ["Slower", "Uses SerpAPI search credits", "New articles are not reviewed before being used"],

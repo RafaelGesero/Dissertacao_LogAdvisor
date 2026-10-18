@@ -96,7 +96,7 @@ export const SEARCH_MODES: {
     value: "KB_WITH_NEW",
     title: "KB + new articles",
     short: "KB + new",
-    description: "Finds 5–10 new articles, adds them to the knowledge base, then uses the whole base.",
+    description: "Finds up to 5 new articles per technology, adds them to the knowledge base, then uses the whole base.",
     Icon: Globe,
     tone: "text-amber-300 bg-amber-500/10 border-amber-500/25",
   },
