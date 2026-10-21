@@ -105,6 +105,15 @@ class RulesFileServiceTest {
     }
 
     @Test
+    void contextTermsSelectSectionsButNeverTheGenericBaseline() {
+        List<Match> matches = rules.match(List.of("Python"), List.of("hotel", "GDPR"), "", 6);
+
+        assertThat(matches).extracting(m -> m.section().id())
+                .contains("python", "regulated-systems")
+                .doesNotContain(RulesFileService.FALLBACK_ID);
+    }
+
+    @Test
     void neverReturnsMoreSectionsThanTheCap() {
         List<Match> matches = rules.match(
                 List.of("Java", "Python", "PHP", "C#", "Android", "Kubernetes", "Oracle"), "microservices", 4);

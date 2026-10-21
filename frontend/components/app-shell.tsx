@@ -5,6 +5,7 @@ import { AppSidebar, SidebarContent } from "@/components/app-sidebar"
 import { AppHeader } from "@/components/app-header"
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet"
 import { cn } from "@/lib/utils"
+import { useT } from "@/lib/i18n"
 
 const WIDTHS = {
   narrow: "max-w-3xl",
@@ -22,6 +23,7 @@ type Props = {
 /** Sidebar + sticky header + centred page container shared by every page of the app. */
 export function AppShell({ title, description, actions, width = "default", children }: Props) {
   const [menuOpen, setMenuOpen] = useState(false)
+  const { t } = useT()
 
   return (
     <div className="min-h-screen bg-background">
@@ -29,7 +31,7 @@ export function AppShell({ title, description, actions, width = "default", child
 
       <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
         <SheetContent side="left" className="w-72 border-sidebar-border bg-sidebar p-0">
-          <SheetTitle className="sr-only">Navigation</SheetTitle>
+          <SheetTitle className="sr-only">{t("nav.navigation")}</SheetTitle>
           <SidebarContent onNavigate={() => setMenuOpen(false)} />
         </SheetContent>
       </Sheet>

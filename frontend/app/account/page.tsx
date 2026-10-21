@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { CheckCircle2, KeyRound, Loader2, LogOut } from "lucide-react"
+import { useT } from "@/lib/i18n"
 
 const MIN_PASSWORD = 5
 
@@ -23,6 +24,7 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 
 export default function AccountPage() {
   const me = useCurrentUser()
+  const { t } = useT()
   const [current, setCurrent] = useState("")
   const [next, setNext] = useState("")
   const [confirm, setConfirm] = useState("")
@@ -34,8 +36,8 @@ export default function AccountPage() {
     e.preventDefault()
     setError(null)
     setDone(false)
-    if (next.length < MIN_PASSWORD) return setError(`The new password must have at least ${MIN_PASSWORD} characters.`)
-    if (next !== confirm) return setError("The new passwords do not match.")
+    if (next.length < MIN_PASSWORD) return setError(t("account.error.length", { n: MIN_PASSWORD }))
+    if (next !== confirm) return setError(t("account.error.match"))
 
     setSaving(true)
     try {
@@ -49,14 +51,14 @@ export default function AccountPage() {
       setNext("")
       setConfirm("")
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not change the password.")
+      setError(err instanceof Error ? err.message : t("account.error.generic"))
     } finally {
       setSaving(false)
     }
   }
 
   return (
-    <AppShell title="Account" description="Your LoggingAdvisor account" width="narrow">
+    <AppShell title={t("account.title")} description={t("account.subtitle")} width="narrow">
       <div className="space-y-6">
         <section className="overflow-hidden rounded-2xl border border-border bg-card">
           <div className="flex items-center gap-4 border-b border-border bg-gradient-to-r from-accent/15 to-transparent p-6">
@@ -65,17 +67,17 @@ export default function AccountPage() {
             </div>
             <div className="min-w-0">
               <p className="truncate text-lg font-semibold text-foreground">{me?.email ?? "…"}</p>
-              <p className="text-sm text-muted-foreground">{me?.role === "ADMIN" ? "Administrator" : "User"}</p>
+              <p className="text-sm text-muted-foreground">{me?.role === "ADMIN" ? t("role.admin") : t("role.user")}</p>
             </div>
             <Button variant="outline" size="sm" className="ml-auto gap-2" onClick={signOut}>
               <LogOut className="h-4 w-4" />
-              <span className="hidden sm:inline">Sign out</span>
+              <span className="hidden sm:inline">{t("nav.signOut")}</span>
             </Button>
           </div>
           <div className="divide-y divide-border px-6">
-            <Row label="Username">{me?.email ?? "—"}</Row>
-            <Row label="Role">{me?.role === "ADMIN" ? "Administrator" : "User"}</Row>
-            <Row label="Analyses">{me?.analyses ?? "—"}</Row>
+            <Row label={t("account.username")}>{me?.email ?? "—"}</Row>
+            <Row label={t("account.role")}>{me?.role === "ADMIN" ? t("role.admin") : t("role.user")}</Row>
+            <Row label={t("account.analyses")}>{me?.analyses ?? "—"}</Row>
           </div>
         </section>
 
@@ -85,24 +87,24 @@ export default function AccountPage() {
               <KeyRound className="h-5 w-5 text-accent" />
             </div>
             <div>
-              <h2 className="font-semibold text-foreground">Change password</h2>
-              <p className="text-sm text-muted-foreground">At least {MIN_PASSWORD} characters</p>
+              <h2 className="font-semibold text-foreground">{t("account.changePassword")}</h2>
+              <p className="text-sm text-muted-foreground">{t("account.minLength", { n: MIN_PASSWORD })}</p>
             </div>
           </div>
           <form onSubmit={handleSubmit} className="space-y-4 p-6">
             <div className="space-y-1.5">
-              <Label htmlFor="current">Current password</Label>
+              <Label htmlFor="current">{t("account.current")}</Label>
               <Input id="current" type="password" autoComplete="current-password" required
                 value={current} onChange={(e) => setCurrent(e.target.value)} className="border-border bg-input" />
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
-                <Label htmlFor="new">New password</Label>
+                <Label htmlFor="new">{t("account.new")}</Label>
                 <Input id="new" type="password" autoComplete="new-password" required minLength={MIN_PASSWORD}
                   value={next} onChange={(e) => setNext(e.target.value)} className="border-border bg-input" />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="confirm">Confirm new password</Label>
+                <Label htmlFor="confirm">{t("account.confirm")}</Label>
                 <Input id="confirm" type="password" autoComplete="new-password" required
                   value={confirm} onChange={(e) => setConfirm(e.target.value)} className="border-border bg-input" />
               </div>
@@ -112,13 +114,13 @@ export default function AccountPage() {
             {done && (
               <div className="flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">
                 <CheckCircle2 className="h-4 w-4 shrink-0" />
-                Password changed.
+                {t("account.changed")}
               </div>
             )}
 
             <div className="flex justify-end">
               <Button type="submit" disabled={saving} className="bg-accent text-accent-foreground hover:bg-accent/90">
-                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Change password"}
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : t("account.changePassword")}
               </Button>
             </div>
           </form>

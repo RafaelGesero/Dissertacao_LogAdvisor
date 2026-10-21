@@ -229,13 +229,23 @@ public class RulesFileService {
      * sections of direct matches, and the generic baseline for technologies nobody recognises.
      */
     public List<Match> match(List<String> keywords, String description, int maxSections) {
+        return match(keywords, List.of(), description, maxSections);
+    }
+
+    /**
+     * Like {@link #match(List, String, int)}, with {@code context} terms (business or regulatory context such as
+     * "healthcare" or "hotel") that may select a section but never trigger the generic baseline.
+     */
+    public List<Match> match(List<String> keywords, List<String> context, String description, int maxSections) {
         Map<String, Match> matches = new LinkedHashMap<>();
         List<String> unmatched = new ArrayList<>();
 
-        for (String keyword : keywords) {
+        List<String> all = new ArrayList<>(keywords);
+        all.addAll(context);
+        for (String keyword : all) {
             Match m = matchKeyword(keyword);
             if (m == null) {
-                unmatched.add(keyword);
+                if (!context.contains(keyword)) unmatched.add(keyword);
             } else {
                 matches.merge(m.section().id(), m, (a, b) -> {
                     a.matchedBy().addAll(b.matchedBy());

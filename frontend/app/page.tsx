@@ -19,19 +19,22 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
+import { useT } from "@/lib/i18n"
+import type { TranslationKey } from "@/lib/translations"
 import { Check, FileSearch, Info, Loader2, Search, Sparkles } from "lucide-react"
 
 const MAX_DESCRIPTION = 5000
 
-const LOADING_STEPS: Record<SearchMode, string> = {
-  RULES: "Applying the predefined rules…",
-  KB: "Searching the knowledge base…",
-  KB_WITH_NEW: "Looking for new articles, adding them to the knowledge base and analysing…",
+const LOADING_STEPS: Record<SearchMode, TranslationKey> = {
+  RULES: "start.loading.RULES",
+  KB: "start.loading.KB",
+  KB_WITH_NEW: "start.loading.KB_WITH_NEW",
 }
 
 export default function HomePage() {
   const [description, setDescription] = useState("")
   const [mode, setMode] = useState<SearchMode>("RULES")
+  const { t, lang } = useT()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [activeResult, setActiveResult] = useState<AnalysisResult | null>(null)
@@ -65,19 +68,13 @@ export default function HomePage() {
       const result: AnalysisResult = {
         ...data,
         query,
-        createdAt: new Date().toLocaleString("pt-PT", {
-          day: "numeric",
-          month: "short",
-          year: "numeric",
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
+        createdAt: new Date().toISOString(),
       }
       setHistory((prev) => [result, ...prev])
       setActiveResult(result)
       setResultOpen(true)
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to get analysis. Is the backend running?")
+      setError(e instanceof Error ? e.message : t("start.error"))
     } finally {
       setIsLoading(false)
     }
@@ -95,7 +92,7 @@ export default function HomePage() {
   }
 
   return (
-    <AppShell title="Start" description="Describe your application to get security logging recommendations">
+    <AppShell title={t("start.title")} description={t("start.subtitle")}>
       <div className="space-y-10">
         {/* Hero */}
         <section className="mx-auto max-w-2xl text-center">
@@ -104,17 +101,16 @@ export default function HomePage() {
             LoggingAdvisor
           </span>
           <h2 className="mt-4 text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-            What should your application log?
+            {t("start.heroTitle")}
           </h2>
           <p className="mt-2 text-sm text-muted-foreground sm:text-base">
-            Describe your application and get the log structure, security events, data handling and storage
-            recommendations, backed by academic research.
+            {t("start.heroText")}
           </p>
         </section>
 
         {/* Composer */}
         <section className="mx-auto max-w-4xl overflow-hidden rounded-2xl border border-border bg-card shadow-lg shadow-black/20">
-          <div role="radiogroup" aria-label="Search mode" className="grid gap-2 border-b border-border p-3 sm:grid-cols-3">
+          <div role="radiogroup" aria-label={t("start.searchMode")} className="grid gap-2 border-b border-border p-3 sm:grid-cols-3">
             {SEARCH_MODES.map((m) => {
               const selected = m.value === mode
               const select = () => !isLoading && setMode(m.value)
@@ -142,8 +138,8 @@ export default function HomePage() {
                 >
                   <button
                     type="button"
-                    aria-label={`How “${m.title}” works`}
-                    title={`How “${m.title}” works`}
+                    aria-label={t("start.howModeWorks", { mode: t(m.title) })}
+                    title={t("start.howModeWorks", { mode: t(m.title) })}
                     onClick={(e) => {
                       e.stopPropagation()
                       setInfoMode(m.value)
@@ -157,10 +153,10 @@ export default function HomePage() {
                     <span className={cn("flex h-7 w-7 items-center justify-center rounded-lg border", m.tone)}>
                       <m.Icon className="h-3.5 w-3.5" />
                     </span>
-                    <span className="text-sm font-medium text-foreground">{m.title}</span>
+                    <span className="text-sm font-medium text-foreground">{t(m.title)}</span>
                     {selected && <Check className="h-4 w-4 text-accent" />}
                   </div>
-                  <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{m.description}</p>
+                  <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{t(m.description)}</p>
                 </div>
               )
             })}
@@ -168,7 +164,7 @@ export default function HomePage() {
 
           <div className="p-4 sm:p-5">
             <Textarea
-              placeholder="e.g. A web application for booking medical appointments. Backend in Java with Spring Boot and PostgreSQL, frontend in React. Patients sign in with email and password and the system stores clinical data…"
+              placeholder={t("start.placeholder")}
               className="min-h-[170px] resize-y border-0 bg-transparent p-0 text-[15px] leading-relaxed text-foreground shadow-none placeholder:text-muted-foreground/70 focus-visible:ring-0"
               value={description}
               maxLength={MAX_DESCRIPTION}
@@ -184,12 +180,15 @@ export default function HomePage() {
               {isLoading ? (
                 <>
                   <Loader2 className="h-3.5 w-3.5 animate-spin text-accent" />
-                  <span>{LOADING_STEPS[mode]}</span>
+                  <span>{t(LOADING_STEPS[mode])}</span>
                 </>
               ) : (
                 <span>
-                  {description.length.toLocaleString("pt-PT")} / {MAX_DESCRIPTION.toLocaleString("pt-PT")} characters
-                  <span className="hidden sm:inline"> · Ctrl + Enter to analyse</span>
+                  {t("start.chars", {
+                    n: description.length.toLocaleString(lang === "pt" ? "pt-PT" : "en-GB"),
+                    max: MAX_DESCRIPTION.toLocaleString(lang === "pt" ? "pt-PT" : "en-GB"),
+                  })}
+                  <span className="hidden sm:inline"> · {t("start.shortcut")}</span>
                 </span>
               )}
             </div>
@@ -200,7 +199,7 @@ export default function HomePage() {
               onClick={handleAnalyze}
             >
               {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-              Analyze
+              {t("start.analyze")}
             </Button>
           </div>
         </section>
@@ -209,12 +208,12 @@ export default function HomePage() {
 
         {/* History */}
         <section className="mx-auto max-w-4xl space-y-4">
-          <SectionHeader title="My analyses" count={history.length}>
+          <SectionHeader title={t("start.myAnalyses")} count={history.length}>
             {history.length > 0 && (
               <div className="relative">
                 <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
                 <Input
-                  placeholder="Filter analyses…"
+                  placeholder={t("start.filter")}
                   className="h-9 w-56 border-border bg-input pl-8 text-sm"
                   value={filter}
                   onChange={(e) => setFilter(e.target.value)}
@@ -226,11 +225,11 @@ export default function HomePage() {
           {history.length === 0 ? (
             <EmptyState
               icon={FileSearch}
-              title="No analyses yet"
-              description="Describe your application above and choose a search mode to get your first recommendation."
+              title={t("start.empty.title")}
+              description={t("start.empty.text")}
             />
           ) : visibleHistory.length === 0 ? (
-            <EmptyState icon={Search} title="No analysis matches the filter" />
+            <EmptyState icon={Search} title={t("start.empty.filter")} />
           ) : (
             <AnalysisList
               items={visibleHistory}

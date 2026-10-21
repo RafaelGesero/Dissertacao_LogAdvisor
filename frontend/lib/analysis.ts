@@ -1,5 +1,6 @@
 import type { ElementType } from "react"
 import { BookOpen, Database, Globe } from "lucide-react"
+import type { TranslationKey } from "@/lib/translations"
 
 export type SearchMode = "RULES" | "KB" | "KB_WITH_NEW"
 
@@ -67,36 +68,37 @@ export function historyToResult(e: HistoryEntry): AnalysisResult {
   }
 }
 
+/** title/short/description are translation keys (see lib/translations.ts). */
 export const SEARCH_MODES: {
   value: SearchMode
-  title: string
-  short: string
-  description: string
+  title: TranslationKey
+  short: TranslationKey
+  description: TranslationKey
   Icon: ElementType
   /** Badge/icon colours for this mode. */
   tone: string
 }[] = [
   {
     value: "RULES",
-    title: "Predefined rules",
-    short: "Predefined rules",
-    description: "Uses the rules built from the 28 articles of the dissertation bibliography.",
+    title: "mode.RULES.title",
+    short: "mode.RULES.short",
+    description: "mode.RULES.description",
     Icon: BookOpen,
     tone: "text-sky-300 bg-sky-500/10 border-sky-500/25",
   },
   {
     value: "KB",
-    title: "Knowledge base",
-    short: "KB",
-    description: "Uses only the articles already stored in the knowledge base.",
+    title: "mode.KB.title",
+    short: "mode.KB.short",
+    description: "mode.KB.description",
     Icon: Database,
     tone: "text-emerald-300 bg-emerald-500/10 border-emerald-500/25",
   },
   {
     value: "KB_WITH_NEW",
-    title: "KB + new articles",
-    short: "KB + new",
-    description: "Finds up to 5 new articles per technology, adds them to the knowledge base, then uses the whole base.",
+    title: "mode.KB_WITH_NEW.title",
+    short: "mode.KB_WITH_NEW.short",
+    description: "mode.KB_WITH_NEW.description",
     Icon: Globe,
     tone: "text-amber-300 bg-amber-500/10 border-amber-500/25",
   },
@@ -109,7 +111,13 @@ export function modeInfo(mode: SearchMode | undefined) {
 /** Older analyses stored the fixed search terms with the keywords; they are noise in titles. */
 const FIXED_SEARCH_TERMS = /\s*security logging data protection information security\s*$/i
 
-export function displayKeywords(keywords: string | undefined): string {
+export function displayKeywords(keywords: string | undefined, fallback = "Analysis"): string {
   const k = (keywords ?? "").replace(FIXED_SEARCH_TERMS, "").trim()
-  return k || "Analysis"
+  return k || fallback
 }
+
+/** "No relevant information" placeholder the backend puts in a technology section, in either language. */
+export const NO_INFO_MESSAGES = [
+  "Não foi encontrada informação relevante sobre o tema em questão",
+  "No relevant information was found on this topic",
+]

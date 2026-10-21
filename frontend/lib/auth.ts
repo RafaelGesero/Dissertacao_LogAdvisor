@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { storedLanguage } from "@/lib/i18n"
 
 const TOKEN_KEY = "loggingadvisor_token"
 
@@ -34,16 +35,22 @@ export function signOut() {
   window.location.href = "/login"
 }
 
-export function authHeaders(): HeadersInit {
+export function authHeaders(): Record<string, string> {
   const token = getToken()
   return token ? { Authorization: `Bearer ${token}` } : {}
+}
+
+/** Makes the backend answer (messages and LLM output) in the language chosen with the switch. */
+export function languageHeaders(): Record<string, string> {
+  return { "Accept-Language": storedLanguage() === "pt" ? "pt-PT" : "en" }
 }
 
 export async function apiFetch(input: string, init?: RequestInit): Promise<Response> {
   const res = await fetch(input, {
     ...init,
     headers: {
-      ...init?.headers,
+      ...(init?.headers as Record<string, string> | undefined),
+      ...languageHeaders(),
       ...authHeaders(),
     },
   })

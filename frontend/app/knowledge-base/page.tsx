@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { apiFetch } from "@/lib/auth"
 import { AppShell } from "@/components/app-shell"
+import { useT } from "@/lib/i18n"
 import { EmptyState, ErrorBanner, LoadingState, StatTile } from "@/components/page-parts"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -61,13 +62,14 @@ function groupByTechnology(articles: Article[]): Record<string, Article[]> {
 }
 
 function ArticleRow({ article, onDelete }: { article: Article; onDelete: (id: number) => void }) {
+  const { t } = useT()
   return (
     <li className="group flex items-start gap-4 px-4 py-4 transition-colors hover:bg-muted/30 sm:px-5">
       <div className="mt-0.5 hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent/10 sm:flex">
         <FileText className="h-4 w-4 text-accent" />
       </div>
       <div className="min-w-0 flex-1 space-y-1">
-        <p className="text-sm font-medium leading-snug text-foreground">{article.title || "Untitled"}</p>
+        <p className="text-sm font-medium leading-snug text-foreground">{article.title || t("analysis.untitled")}</p>
         {article.publication && <p className="truncate text-xs text-muted-foreground">{article.publication}</p>}
         {article.snippet && (
           <p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground/90">{article.snippet}</p>
@@ -80,7 +82,7 @@ function ArticleRow({ article, onDelete }: { article: Article; onDelete: (id: nu
             target="_blank"
             rel="noopener noreferrer"
             className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-accent"
-            title="Open article"
+            title={t("kb.openArticle")}
           >
             <ExternalLink className="h-4 w-4" />
           </a>
@@ -88,7 +90,7 @@ function ArticleRow({ article, onDelete }: { article: Article; onDelete: (id: nu
         <button
           onClick={() => onDelete(article.id)}
           className="rounded-md p-1.5 text-muted-foreground transition hover:bg-red-500/10 hover:text-red-400 sm:opacity-0 sm:group-hover:opacity-100"
-          title="Delete article"
+          title={t("kb.deleteArticle")}
         >
           <Trash2 className="h-4 w-4" />
         </button>
@@ -98,6 +100,7 @@ function ArticleRow({ article, onDelete }: { article: Article; onDelete: (id: nu
 }
 
 export default function KnowledgeBasePage() {
+  const { t } = useT()
   const [articles, setArticles] = useState<Article[]>([])
   const [search, setSearch] = useState("")
   const [isLoading, setIsLoading] = useState(false)
@@ -118,7 +121,7 @@ export default function KnowledgeBasePage() {
       if (!res.ok) throw new Error(`Server error: ${res.status}`)
       setArticles([])
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to clear knowledge base.")
+      setError(e instanceof Error ? e.message : t("kb.error.clear"))
     } finally {
       setIsClearing(false)
       setClearOpen(false)
@@ -134,7 +137,7 @@ export default function KnowledgeBasePage() {
       const data: Article[] = await res.json()
       setArticles(data)
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load knowledge base.")
+      setError(e instanceof Error ? e.message : t("kb.error.load"))
     } finally {
       setIsLoading(false)
     }
@@ -165,7 +168,7 @@ export default function KnowledgeBasePage() {
       if (!res.ok) throw new Error(`Server error: ${res.status}`)
       setArticles((prev) => prev.filter((a) => a.id !== id))
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to delete article.")
+      setError(e instanceof Error ? e.message : t("kb.error.delete"))
     }
   }
 
@@ -177,7 +180,7 @@ export default function KnowledgeBasePage() {
 
   const handleSave = async () => {
     if (!form.link.trim()) {
-      setFormError("Link is required.")
+      setFormError(t("kb.error.link"))
       return
     }
     setIsSaving(true)
@@ -192,7 +195,7 @@ export default function KnowledgeBasePage() {
       setAddOpen(false)
       await fetchArticles()
     } catch (e) {
-      setFormError(e instanceof Error ? e.message : "Failed to save article.")
+      setFormError(e instanceof Error ? e.message : t("kb.error.save"))
     } finally {
       setIsSaving(false)
     }
@@ -208,7 +211,7 @@ export default function KnowledgeBasePage() {
         disabled={isLoading}
       >
         <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? "animate-spin" : ""}`} />
-        Refresh
+        {t("kb.refresh")}
       </Button>
       <Button
         suppressHydrationWarning
@@ -219,7 +222,7 @@ export default function KnowledgeBasePage() {
         disabled={articles.length === 0 || isLoading}
       >
         <Trash2 className="h-3.5 w-3.5" />
-        Clear KB
+        {t("kb.clear")}
       </Button>
       <Button
         size="sm"
@@ -227,18 +230,18 @@ export default function KnowledgeBasePage() {
         onClick={handleOpenAdd}
       >
         <Plus className="h-3.5 w-3.5" />
-        Add Article
+        {t("kb.add")}
       </Button>
     </>
   )
 
   return (
-    <AppShell title="Knowledge Base" description="Academic articles indexed for retrieval" actions={actions}>
+    <AppShell title={t("kb.title")} description={t("kb.subtitle")} actions={actions}>
       <div className="space-y-6">
         <div className="grid gap-4 sm:grid-cols-3">
-          <StatTile label="Articles indexed" value={isLoading ? "…" : articles.length} icon={Database} />
+          <StatTile label={t("kb.indexed")} value={isLoading ? "…" : articles.length} icon={Database} />
           <StatTile
-            label="Technologies"
+            label={t("kb.technologies")}
             value={isLoading ? "…" : Object.keys(groupByTechnology(articles)).length}
             icon={Layers}
           />
@@ -246,7 +249,7 @@ export default function KnowledgeBasePage() {
             <div className="relative w-full">
               <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="Filter by title, journal, technology…"
+                placeholder={t("kb.filter")}
                 className="h-10 border-border bg-input pl-9 text-sm"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -256,16 +259,16 @@ export default function KnowledgeBasePage() {
         </div>
 
         {error && <ErrorBanner message={error} />}
-        {isLoading && <LoadingState label="Loading knowledge base…" />}
+        {isLoading && <LoadingState label={t("kb.loading")} />}
 
         {!isLoading && !error && filtered.length === 0 && (
           <EmptyState
             icon={BookOpen}
-            title={articles.length === 0 ? "No articles in the knowledge base yet" : "No articles match your filter"}
+            title={articles.length === 0 ? t("kb.empty.title") : t("kb.empty.filter")}
             description={
               articles.length === 0
-                ? "Run an analysis with “KB + new articles” or add articles manually."
-                : "Try a different search term."
+                ? t("kb.empty.text")
+                : t("kb.empty.filterText")
             }
           />
         )}
@@ -275,7 +278,7 @@ export default function KnowledgeBasePage() {
             <TabsList className="mb-4 h-auto flex-wrap gap-1 bg-muted p-1">
               {technologies.map((tech) => (
                 <TabsTrigger key={tech} value={tech} className="gap-1.5 text-xs">
-                  {tech}
+                  {tech === "Other" ? t("kb.other") : tech}
                   <span className="rounded-full bg-accent/20 px-1.5 text-[10px] font-semibold leading-4 text-accent">
                     {grouped[tech].length}
                   </span>
@@ -302,13 +305,10 @@ export default function KnowledgeBasePage() {
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2 text-foreground">
               <Trash2 className="h-4 w-4 text-red-400" />
-              Clear Knowledge Base
+              {t("kb.clearTitle")}
             </AlertDialogTitle>
             <AlertDialogDescription className="text-muted-foreground">
-              This will permanently remove all{" "}
-              <span className="font-semibold text-foreground">{articles.length}</span>{" "}
-              {articles.length === 1 ? "article" : "articles"} from Chroma. Future analyses will
-              need to fetch new articles via SerpAPI. This action cannot be undone.
+              {t(articles.length === 1 ? "kb.clearText.one" : "kb.clearText.other", { n: articles.length })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -316,7 +316,7 @@ export default function KnowledgeBasePage() {
               className="border-border text-muted-foreground hover:text-foreground"
               disabled={isClearing}
             >
-              Cancel
+              {t("common.cancel")}
             </AlertDialogCancel>
             <AlertDialogAction
               className="bg-red-700 hover:bg-red-600 text-white gap-1.5"
@@ -328,7 +328,7 @@ export default function KnowledgeBasePage() {
               ) : (
                 <Trash2 className="h-3.5 w-3.5" />
               )}
-              {isClearing ? "Clearing…" : "Yes, clear all"}
+              {isClearing ? t("kb.clearing") : t("kb.clearConfirm")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -340,14 +340,14 @@ export default function KnowledgeBasePage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-foreground">
               <BookOpen className="h-4 w-4 text-accent" />
-              Add Article to Knowledge Base
+              {t("kb.addTitle")}
             </DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4 py-2">
             <div className="space-y-1.5">
               <Label className="text-xs font-medium text-foreground">
-                Link <span className="text-red-400">*</span>
+                {t("kb.field.link")} <span className="text-red-400">*</span>
               </Label>
               <Input
                 placeholder="https://doi.org/…"
@@ -358,9 +358,9 @@ export default function KnowledgeBasePage() {
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-foreground">Title</Label>
+              <Label className="text-xs font-medium text-foreground">{t("kb.field.title")}</Label>
               <Input
-                placeholder="Article title"
+                placeholder={t("kb.field.titlePlaceholder")}
                 className="bg-input border-border text-foreground placeholder:text-muted-foreground text-sm"
                 value={form.title}
                 onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
@@ -368,9 +368,9 @@ export default function KnowledgeBasePage() {
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-foreground">Technology</Label>
+              <Label className="text-xs font-medium text-foreground">{t("kb.field.technology")}</Label>
               <Input
-                placeholder="e.g. Java, Python, SQL, Spring Boot…"
+                placeholder={t("kb.field.technologyPlaceholder")}
                 className="bg-input border-border text-foreground placeholder:text-muted-foreground text-sm"
                 value={form.technology}
                 onChange={(e) => setForm((f) => ({ ...f, technology: e.target.value }))}
@@ -378,9 +378,9 @@ export default function KnowledgeBasePage() {
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-foreground">Publication / Journal</Label>
+              <Label className="text-xs font-medium text-foreground">{t("kb.field.publication")}</Label>
               <Input
-                placeholder="e.g. IEEE Transactions on Information Security, 2023"
+                placeholder={t("kb.field.publicationPlaceholder")}
                 className="bg-input border-border text-foreground placeholder:text-muted-foreground text-sm"
                 value={form.publication}
                 onChange={(e) => setForm((f) => ({ ...f, publication: e.target.value }))}
@@ -388,9 +388,9 @@ export default function KnowledgeBasePage() {
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-foreground">Abstract / Snippet</Label>
+              <Label className="text-xs font-medium text-foreground">{t("kb.field.snippet")}</Label>
               <Textarea
-                placeholder="Paste the abstract or a relevant excerpt…"
+                placeholder={t("kb.field.snippetPlaceholder")}
                 className="resize-none min-h-[100px] bg-input border-border text-foreground placeholder:text-muted-foreground text-sm"
                 value={form.snippet}
                 onChange={(e) => setForm((f) => ({ ...f, snippet: e.target.value }))}
@@ -412,7 +412,7 @@ export default function KnowledgeBasePage() {
               onClick={() => setAddOpen(false)}
               disabled={isSaving}
             >
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button
               className="bg-accent text-accent-foreground hover:bg-accent/90 gap-1.5"
@@ -420,7 +420,7 @@ export default function KnowledgeBasePage() {
               disabled={isSaving}
             >
               {isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
-              {isSaving ? "Saving…" : "Add to KB"}
+              {isSaving ? t("kb.saving") : t("kb.addConfirm")}
             </Button>
           </DialogFooter>
         </DialogContent>

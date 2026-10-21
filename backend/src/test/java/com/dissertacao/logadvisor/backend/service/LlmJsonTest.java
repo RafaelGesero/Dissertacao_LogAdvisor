@@ -27,4 +27,18 @@ class LlmJsonTest {
         assertThat(LogAdvisorService.retryAfterSeconds("rate_limit_exceeded try again in 1m2.5s")).isEqualTo(62.5);
         assertThat(LogAdvisorService.retryAfterSeconds("connection reset")).isNull();
     }
+
+    @Test
+    void readsTheLabelledLinesOfTheKeywordAnswer() {
+        String answer = "TECHNOLOGIES: Python, Django, PostgreSQL\ncontext: hotel, payments";
+
+        assertThat(LogAdvisorService.lineValue(answer, "TECHNOLOGIES")).isEqualTo("Python, Django, PostgreSQL");
+        assertThat(LogAdvisorService.lineValue(answer, "CONTEXT")).isEqualTo("hotel, payments");
+        assertThat(LogAdvisorService.lineValue("Python, Django", "TECHNOLOGIES")).isNull();
+    }
+
+    @Test
+    void literalBackslashNBecomesALineBreak() {
+        assertThat(LogAdvisorService.fixDoubleEscapes("- a\\n- b")).isEqualTo("- a\n- b");
+    }
 }

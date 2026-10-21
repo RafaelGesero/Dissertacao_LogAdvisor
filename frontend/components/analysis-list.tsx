@@ -4,6 +4,7 @@ import { type AnalysisResult, displayKeywords, modeInfo } from "@/lib/analysis"
 import { ToneBadge } from "@/components/page-parts"
 import { ChevronRight, Trash2, Share2, User, Clock } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { formatDate, useT } from "@/lib/i18n"
 
 type Props = {
   items: AnalysisResult[]
@@ -14,6 +15,7 @@ type Props = {
 }
 
 export function AnalysisList({ items, onOpen, onDelete, showOwner, showShared = true }: Props) {
+  const { t, lang } = useT()
   return (
     <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
       {items.map((entry, i) => {
@@ -32,15 +34,15 @@ export function AnalysisList({ items, onOpen, onDelete, showOwner, showShared = 
               </div>
 
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium text-foreground">{displayKeywords(entry.keywords)}</p>
+                <p className="truncate text-sm font-medium text-foreground">{displayKeywords(entry.keywords, t("analysis.untitled"))}</p>
                 {entry.query && <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{entry.query}</p>}
                 <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
                   <ToneBadge tone={m.tone} icon={m.Icon}>
-                    {m.short}
+                    {t(m.short)}
                   </ToneBadge>
                   {showShared && entry.shared && (
                     <ToneBadge tone="text-accent bg-accent/10 border-accent/30" icon={Share2}>
-                      Shared
+                      {t("analysis.shared")}
                     </ToneBadge>
                   )}
                   {showOwner && entry.owner && (
@@ -52,7 +54,7 @@ export function AnalysisList({ items, onOpen, onDelete, showOwner, showShared = 
                   {entry.createdAt && (
                     <span className="flex items-center gap-1">
                       <Clock className="h-3 w-3" />
-                      {entry.createdAt}
+                      {formatDate(entry.createdAt, lang)}
                     </span>
                   )}
                 </div>
@@ -66,7 +68,7 @@ export function AnalysisList({ items, onOpen, onDelete, showOwner, showShared = 
                       onDelete(entry)
                     }}
                     className="rounded-md p-1.5 text-muted-foreground opacity-100 transition hover:bg-red-500/10 hover:text-red-400 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
-                    title="Delete analysis"
+                    title={t("analysis.delete")}
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>

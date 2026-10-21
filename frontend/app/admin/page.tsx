@@ -16,11 +16,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { FileText, KeyRound, Loader2, Lock, Search, Share2, Users } from "lucide-react"
+import { useT } from "@/lib/i18n"
 
 const ALL = "__all__"
 
 export default function AdminPage() {
   const me = useCurrentUser()
+  const { t, lang } = useT()
   const [analyses, setAnalyses] = useState<AnalysisResult[]>([])
   const [users, setUsers] = useState<CurrentUser[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -48,7 +50,7 @@ export default function AdminPage() {
         setAnalyses(entries.map(historyToResult))
         setUsers(await u.json())
       })
-      .catch((e) => setError(e instanceof Error ? e.message : "Failed to load admin data."))
+      .catch((e) => setError(e instanceof Error ? e.message : t("admin.loadError")))
       .finally(() => setIsLoading(false))
   }, [isAdmin])
 
@@ -75,7 +77,7 @@ export default function AdminPage() {
   const submitReset = async () => {
     if (!resetUser) return
     setResetError(null)
-    if (newPassword.length < 5) return setResetError("The password must have at least 5 characters.")
+    if (newPassword.length < 5) return setResetError(t("account.error.length", { n: 5 }))
     setResetting(true)
     try {
       const res = await apiJson(`${API_URL}/admin/users/${resetUser.id}/password`, "PUT", { newPassword })
@@ -84,39 +86,39 @@ export default function AdminPage() {
       setResetUser(null)
       setNewPassword("")
     } catch (e) {
-      setResetError(e instanceof Error ? e.message : "Could not reset the password.")
+      setResetError(e instanceof Error ? e.message : t("admin.resetError"))
     } finally {
       setResetting(false)
     }
   }
 
   return (
-    <AppShell title="Administration" description="Every analysis of every user, and user management">
+    <AppShell title={t("admin.title")} description={t("admin.subtitle")}>
       <div className="space-y-6">
           {me && !isAdmin && (
-            <EmptyState icon={Lock} title="Administrators only" description="This page is only available to administrators." />
+            <EmptyState icon={Lock} title={t("admin.only.title")} description={t("admin.only.text")} />
           )}
 
-          {isAdmin && isLoading && <LoadingState label="Loading…" />}
+          {isAdmin && isLoading && <LoadingState label={t("common.loading")} />}
           {error && <ErrorBanner message={error} />}
 
           {isAdmin && !isLoading && !error && (
             <>
             <div className="grid gap-4 sm:grid-cols-3">
-              <StatTile label="Users" value={users.length} icon={Users} />
-              <StatTile label="Analyses" value={analyses.length} icon={FileText} />
-              <StatTile label="Shared analyses" value={analyses.filter((a) => a.shared).length} icon={Share2} />
+              <StatTile label={t("admin.users")} value={users.length} icon={Users} />
+              <StatTile label={t("admin.analyses")} value={analyses.length} icon={FileText} />
+              <StatTile label={t("admin.sharedAnalyses")} value={analyses.filter((a) => a.shared).length} icon={Share2} />
             </div>
 
             <Tabs defaultValue="analyses" className="space-y-4">
               <TabsList className="bg-muted">
                 <TabsTrigger value="analyses" className="gap-1.5">
                   <FileText className="h-3.5 w-3.5" />
-                  All analyses
+                  {t("admin.tab.analyses")}
                 </TabsTrigger>
                 <TabsTrigger value="users" className="gap-1.5">
                   <Users className="h-3.5 w-3.5" />
-                  Users
+                  {t("admin.users")}
                 </TabsTrigger>
               </TabsList>
 
@@ -124,10 +126,10 @@ export default function AdminPage() {
                 <div className="flex flex-wrap items-center gap-3">
                   <Select value={owner} onValueChange={setOwner}>
                     <SelectTrigger className="w-64 bg-input border-border">
-                      <SelectValue placeholder="All users" />
+                      <SelectValue placeholder={t("admin.allUsers")} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value={ALL}>All users</SelectItem>
+                      <SelectItem value={ALL}>{t("admin.allUsers")}</SelectItem>
                       {users.map((u) => (
                         <SelectItem key={u.id} value={u.email}>
                           {u.email} ({u.analyses})
@@ -138,17 +140,17 @@ export default function AdminPage() {
                   <div className="relative w-72">
                     <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
                     <Input
-                      placeholder="Filter by technology or description…"
+                      placeholder={t("admin.filter")}
                       className="h-9 pl-8 bg-input border-border text-sm"
                       value={filter}
                       onChange={(e) => setFilter(e.target.value)}
                     />
                   </div>
-                  <span className="text-xs text-muted-foreground ml-auto">{visible.length} shown</span>
+                  <span className="text-xs text-muted-foreground ml-auto">{t("admin.shown", { n: visible.length })}</span>
                 </div>
 
                 {visible.length === 0 ? (
-                  <EmptyState icon={FileText} title="No analyses" />
+                  <EmptyState icon={FileText} title={t("admin.noAnalyses")} />
                 ) : (
                   <AnalysisList
                     items={visible}
@@ -164,16 +166,16 @@ export default function AdminPage() {
 
               <TabsContent value="users" className="space-y-4">
                 {resetDone && (
-                  <p className="text-sm text-emerald-300">Password of {resetDone} was reset.</p>
+                  <p className="text-sm text-emerald-300">{t("admin.resetDone", { user: resetDone })}</p>
                 )}
                 <div className="overflow-hidden rounded-xl border border-border bg-card">
                   <Table>
                     <TableHeader>
                       <TableRow className="hover:bg-transparent">
-                        <TableHead className="pl-5">User</TableHead>
-                        <TableHead>Role</TableHead>
-                        <TableHead>Created</TableHead>
-                        <TableHead className="text-right">Analyses</TableHead>
+                        <TableHead className="pl-5">{t("admin.col.user")}</TableHead>
+                        <TableHead>{t("account.role")}</TableHead>
+                        <TableHead>{t("admin.col.created")}</TableHead>
+                        <TableHead className="text-right">{t("admin.analyses")}</TableHead>
                         <TableHead />
                       </TableRow>
                     </TableHeader>
@@ -186,11 +188,11 @@ export default function AdminPage() {
                               variant="outline"
                               className={u.role === "ADMIN" ? "border-accent/40 text-accent font-normal" : "border-border font-normal"}
                             >
-                              {u.role === "ADMIN" ? "Admin" : "User"}
+                              {u.role === "ADMIN" ? t("role.admin") : t("role.user")}
                             </Badge>
                           </TableCell>
                           <TableCell className="text-muted-foreground text-xs">
-                            {u.createdAt ? new Date(u.createdAt).toLocaleDateString("pt-PT") : "—"}
+                            {u.createdAt ? new Date(u.createdAt).toLocaleDateString(lang === "pt" ? "pt-PT" : "en-GB") : "—"}
                           </TableCell>
                           <TableCell className="text-right">{u.analyses}</TableCell>
                           <TableCell className="text-right pr-4">
@@ -206,7 +208,7 @@ export default function AdminPage() {
                               }}
                             >
                               <KeyRound className="h-3.5 w-3.5" />
-                              Reset password
+                              {t("admin.resetPassword")}
                             </Button>
                           </TableCell>
                         </TableRow>
@@ -232,14 +234,14 @@ export default function AdminPage() {
       <Dialog open={!!resetUser} onOpenChange={(o) => !o && setResetUser(null)}>
         <DialogContent className="bg-card border-border text-foreground max-w-sm">
           <DialogHeader>
-            <DialogTitle>Reset password</DialogTitle>
+            <DialogTitle>{t("admin.resetPassword")}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
-              New password for <span className="text-foreground">{resetUser?.email}</span>
+              {t("admin.newPasswordFor")} <span className="text-foreground">{resetUser?.email}</span>
             </p>
             <div className="space-y-1.5">
-              <Label htmlFor="reset-password">New password</Label>
+              <Label htmlFor="reset-password">{t("account.new")}</Label>
               <Input
                 id="reset-password"
                 type="password"
@@ -253,14 +255,14 @@ export default function AdminPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setResetUser(null)}>
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button
               className="bg-accent text-accent-foreground hover:bg-accent/90"
               disabled={resetting}
               onClick={submitReset}
             >
-              {resetting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Reset"}
+              {resetting ? <Loader2 className="h-4 w-4 animate-spin" /> : t("admin.reset")}
             </Button>
           </DialogFooter>
         </DialogContent>

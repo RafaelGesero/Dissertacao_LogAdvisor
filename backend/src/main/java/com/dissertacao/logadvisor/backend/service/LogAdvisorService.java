@@ -1,5 +1,7 @@
 package com.dissertacao.logadvisor.backend.service;
 
+import com.dissertacao.logadvisor.backend.config.Messages;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -50,7 +52,6 @@ import lombok.extern.slf4j.Slf4j;
 public class LogAdvisorService {
 
     private static final String MANDATORY_SEARCH_TERMS = "security logging data protection information security";
-    private static final String NO_INFO_MESSAGE = "Não foi encontrada informação relevante sobre o tema em questão";
     private static final int MAX_KB_TECHNOLOGIES = 4;
     private static final int MAX_KB_FETCH_PER_TECH = 100;
     private static final int MAX_SNIPPET_CHARS = 350;
@@ -74,7 +75,7 @@ public class LogAdvisorService {
      * Groq's free tier allows 8000 tokens per minute (input + output), and one request may not exceed it.
      * These budgets (in characters, ~3.8 chars per token) keep every prompt well below that limit.
      */
-    @Value("${app.kb.prompt-budget-chars:7000}")
+    @Value("${app.kb.prompt-budget-chars:5500}")
     private int kbPromptBudget;
 
     @Value("${app.rules.prompt-budget-chars:12000}")
@@ -247,39 +248,54 @@ public class LogAdvisorService {
                 - Recommendations on encryption at rest and in transit, and access control for logs
 
                 For "securityGuidance", "dataTypes" and "storageTips", base yourself on the academic articles first; \
-                you may complement them with widely accepted practice, marking those points with "(general practice)".
+                you may complement them with widely accepted practice, marking those points with "%s".
+
+                LENGTH: be concise. Each "content" must stay under about 1200 characters and each of \
+                "securityGuidance", "dataTypes" and "storageTips" under about 1200 characters, so the whole JSON is complete.
+
+                LANGUAGE: write every text value in %s. Keep the labels "Mandatory Fields:", "Log Levels:", \
+                "Security Events:", "Log Template:" and "Schema:" exactly as written in English, and keep event codes, \
+                field names and JSON keys in English. Do not translate article titles.
 
                 Academic articles:
                 %s
                 Application described by the user: %s
-                """.formatted(String.join(", ", technologies), NO_INFO_MESSAGE, articles, clip(query));
+                """.formatted(String.join(", ", technologies), Messages.t("advice.noInfo"),
+                Messages.t("advice.generalPractice"), Messages.languageName(), articles, clip(query));
     }
 
     // ── Mode 1.1: rules file ─────────────────────────────────────────────────
 
     private LogAdviceResponse adviceFromRulesFile(String query) {
-        String rawKeywords = extractKeywords("""
-                Extract up to %d concise keywords from the application description below: programming languages, \
-                frameworks, libraries, databases, architecture (e.g. microservices, REST API, web application), \
-                platforms (e.g. Android, Kubernetes), logging tools, and regulatory or business context \
-                (e.g. healthcare, payments, GDPR). Use the usual English names.
-                Reply ONLY with the keywords separated by commas, nothing else. No punctuation at the end, no explanations.
+        String extracted = extractKeywords("""
+                From the application description below, extract:
+                - TECHNOLOGIES: up to %d programming languages, frameworks, libraries, databases, platforms \
+                (e.g. Android, Kubernetes), architectures (e.g. microservices, REST API, web application) and logging tools;
+                - CONTEXT: up to 4 business or regulatory context terms (e.g. healthcare, payments, banking, GDPR).
+                Use the usual English names. Reply ONLY with these two lines, nothing else:
+                TECHNOLOGIES: <comma-separated list>
+                CONTEXT: <comma-separated list, or none>
 
                 Description: %s
                 """.formatted(MAX_RULES_KEYWORDS, clip(query)));
+        String rawKeywords = lineValue(extracted, "TECHNOLOGIES");
+        if (rawKeywords == null) rawKeywords = extracted; // model ignored the format: treat everything as technologies
+        String rawContext = lineValue(extracted, "CONTEXT");
         List<String> keywords = parseKeywords(rawKeywords, MAX_RULES_KEYWORDS);
-        List<Match> matches = rules.match(keywords, query, MAX_RULES_SECTIONS);
-        log.info("Ficheiro de regras: keywords {} -> secções {}", keywords,
+        List<String> context = rawContext == null || rawContext.equalsIgnoreCase("none")
+                ? List.of() : parseKeywords(rawContext, 4);
+        List<Match> matches = rules.match(keywords, context, query, MAX_RULES_SECTIONS);
+        log.info("Ficheiro de regras: keywords {} contexto {} -> secções {}", keywords, context,
                 matches.stream().map(m -> m.section().id() + ":" + m.type()).toList());
 
         // Per-technology structure comes straight from the file's «Formato-modelo» and «Regras»
         List<LogSection> logStructure = new ArrayList<>();
         for (Match m : matches) logStructure.add(toLogSection(m));
-        logStructure.add(new LogSection("Universal rules", "Key Rules:\n" + rules.items(Category.UNIVERSAL)
+        logStructure.add(new LogSection(Messages.t("rules.universal"), "Key Rules:\n" + rules.items(Category.UNIVERSAL)
                 .stream().map(RuleItem::text).collect(Collectors.joining("\n"))));
 
         // Security, data types and storage: the LLM adapts the most relevant rules of PARTES 3-5
-        String relevanceQuery = rawKeywords + "\n" + clip(query);
+        String relevanceQuery = rawKeywords + (rawContext != null ? ", " + rawContext : "") + "\n" + clip(query);
         Set<String> events = new LinkedHashSet<>();
         matches.forEach(m -> events.addAll(m.section().securityEvents()));
         boolean regulated = matches.stream().anyMatch(m -> m.section().id().equals("regulated-systems"));
@@ -321,7 +337,7 @@ public class LogAdvisorService {
             log.warn("LLM indisponível no modo ficheiro de regras, a devolver as regras selecionadas: {}", e.getMessage());
             securityText = dataText = storageText = null;
         }
-        String fallbackNote = "(LLM unavailable: showing the predefined rules selected for this application.)\n";
+        String fallbackNote = Messages.t("rules.llmUnavailable") + "\n";
         if (isBlank(securityText)) securityText = fallbackNote + bullets(security);
         if (isBlank(dataText)) dataText = fallbackNote + bullets(dataTypes);
         if (isBlank(storageText)) storageText = fallbackNote + bullets(storage);
@@ -347,26 +363,23 @@ public class LogAdvisorService {
         TechSection s = m.section();
         String by = String.join(", ", m.matchedBy());
         String evidence = switch (m.type()) {
-            case DIRECT -> "Direct match" + (by.isEmpty() ? "" : " for " + by) + " in section «" + s.name()
-                    + "». Evidence level of the section: " + s.evidence() + ".";
-            case DERIVED -> "DERIVED: " + by + " is only recognised by derivation in section «" + s.name()
-                    + "». This guidance was not studied for " + by + " in the articles.";
-            case COMBINED -> "Related section («Combinar com» of " + by + "): «" + s.name()
-                    + "». Evidence level of the section: " + s.evidence() + ".";
-            case FALLBACK -> "No section of the predefined rules recognises "
-                    + (by.isEmpty() ? "the technologies described" : by)
-                    + ", so the generic baseline is used. There is no direct evidence: derive from the closest family "
-                    + "(JVM → Java; .NET → C#; dynamic server languages → Python/JavaScript/PHP; native code → C/C++; mobile → Android).";
+            case DIRECT -> Messages.t("rules.evidence.direct",
+                    by.isEmpty() ? "" : Messages.t("rules.evidence.directFor", by), s.name(), s.evidence());
+            case DERIVED -> Messages.t("rules.evidence.derived", by, s.name(), by);
+            case COMBINED -> Messages.t("rules.evidence.combined", by, s.name(), s.evidence());
+            case FALLBACK -> Messages.t("rules.evidence.fallback",
+                    by.isEmpty() ? Messages.t("rules.evidence.fallbackDefault") : by);
         };
         StringBuilder content = new StringBuilder("Evidence: ").append(evidence);
-        if (!s.sources().isEmpty()) content.append("\nSection sources: ").append(String.join(", ", s.sources()));
+        if (!s.sources().isEmpty()) content.append("\n").append(Messages.t("rules.sectionSources")).append(": ").append(String.join(", ", s.sources()));
         s.notes().forEach(n -> content.append("\n").append(n));
-        if (!isBlank(s.limitations())) content.append("\nLimitations: ").append(s.limitations());
+        if (!isBlank(s.limitations())) content.append("\n").append(Messages.t("rules.limitations")).append(": ").append(s.limitations());
         content.append("\n");
         s.template().forEach(line -> content.append(line).append("\n"));
         content.append("Key Rules:\n").append(String.join("\n", s.rules()));
 
-        String label = m.type() == MatchType.FALLBACK && !by.isEmpty() ? "Generic baseline (" + by + ")" : s.label();
+        String label = m.type() == MatchType.FALLBACK && !by.isEmpty()
+                ? Messages.t("rules.genericBaseline", by) : Messages.sectionLabel(s.id(), s.label());
         return new LogSection(label, content.toString());
     }
 
@@ -384,7 +397,9 @@ public class LogAdvisorService {
                 - Security and privacy rules prevail over convenience, performance or detail.
                 - Never suggest logging data marked "Nunca registar"; suggest logging the event, an opaque identifier or a hash instead.
                 - If the excerpts do not provide something (legal retention periods, ISO/NIST/OWASP control numbers, cipher algorithms), say that the rules file does not provide it.
-                - Select only what is relevant to the described application; be short and actionable. Write in English; keep event codes and field names in English.
+                - Select only what is relevant to the described application; be short and actionable \
+                (each field under about 1500 characters, so the whole JSON is complete).
+                - Write every value in %s. Keep rule IDs, event codes, field names and source keys exactly as written.
 
                 "securityGuidance": which security events this application must log (use the event codes), where and at which level, \
                 what every security log entry must contain, and the security practices that apply. Use the SECURITY excerpts.
@@ -402,8 +417,8 @@ public class LogAdvisorService {
                 === STORAGE excerpts ===
                 %s
                 Application described by the user: %s
-                """.formatted(technologies, String.join("\n", security), String.join("\n", dataTypes),
-                String.join("\n", storage), clip(query));
+                """.formatted(Messages.languageName(), technologies, String.join("\n", security),
+                String.join("\n", dataTypes), String.join("\n", storage), clip(query));
     }
 
     /** The rules of the given categories most similar to the description, in file order, within {@code budget} chars. */
@@ -480,16 +495,12 @@ public class LogAdvisorService {
         String msg = chain.toLowerCase();
         log.error("Erro do LLM: {}", chain);
         if (msg.contains("request too large") || msg.contains("413")) {
-            return new ResponseStatusException(HttpStatus.PAYLOAD_TOO_LARGE,
-                    "O pedido ao Groq é maior do que o limite de tokens por minuto da conta. Reduz a descrição "
-                            + "ou os orçamentos de prompt (app.kb/rules.prompt-budget-chars).");
+            return new ResponseStatusException(HttpStatus.PAYLOAD_TOO_LARGE, Messages.t("llm.tooLarge"));
         }
         if (msg.contains("rate_limit") || msg.contains("rate limit") || msg.contains("429")) {
-            return new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,
-                    "O limite de tokens por minuto do Groq foi atingido. Aguarda cerca de um minuto e tenta novamente.");
+            return new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, Messages.t("llm.rateLimit"));
         }
-        return new ResponseStatusException(HttpStatus.BAD_GATEWAY,
-                "O modelo de linguagem não respondeu. Tenta novamente.");
+        return new ResponseStatusException(HttpStatus.BAD_GATEWAY, Messages.t("llm.noResponse"));
     }
 
     /** Parses Groq's "Please try again in 1m2.5s" / "in 15.21s"; null when the error is not a rate limit. */
@@ -507,6 +518,15 @@ public class LogAdvisorService {
             sb.append(t.getClass().getSimpleName()).append(": ").append(t.getMessage()).append(" | ");
         }
         return sb.toString();
+    }
+
+    /** "TECHNOLOGIES: a, b" -> "a, b"; null when the line is missing. */
+    static String lineValue(String text, String name) {
+        for (String line : text.split("\\R")) {
+            String l = line.trim();
+            if (l.regionMatches(true, 0, name + ":", 0, name.length() + 1)) return l.substring(name.length() + 1).trim();
+        }
+        return null;
     }
 
     private List<String> parseKeywords(String rawKeywords, int max) {
@@ -538,7 +558,7 @@ public class LogAdvisorService {
         fallback.setLogStructure(List.of(new LogSection("General", raw)));
         fallback.setSecurityGuidance("");
         fallback.setDataTypes("");
-        fallback.setStorageTips("Não foi possível gerar as dicas de armazenamento separadamente.");
+        fallback.setStorageTips(Messages.t("advice.storageFallback"));
         return fallback;
     }
 
@@ -621,7 +641,12 @@ public class LogAdvisorService {
     private String extractStringField(JsonObject obj, String field) {
         if (!obj.has(field) || obj.get(field).isJsonNull()) return null;
         JsonElement el = obj.get(field);
-        return el.isJsonPrimitive() ? el.getAsString() : gson.toJson(el);
+        return el.isJsonPrimitive() ? fixDoubleEscapes(el.getAsString()) : gson.toJson(el);
+    }
+
+    /** The model sometimes writes "\\n" inside JSON strings, which shows up as a literal backslash-n. */
+    static String fixDoubleEscapes(String text) {
+        return text.replace("\\r\\n", "\n").replace("\\n", "\n").replace("\\t", "  ");
     }
 
     private String truncate(String text) {

@@ -24,6 +24,10 @@ public class ChromaConfig {
     @Value("${app.groq.timeout-seconds:150}")
     private int groqTimeoutSeconds;
 
+    /** Room for the reasoning tokens of gpt-oss plus the JSON answer (Portuguese answers are longer). */
+    @Value("${app.groq.max-output-tokens:8000}")
+    private int groqMaxOutputTokens;
+
     @Value("${chroma.url}")
     private String chromaUrl;
 
@@ -43,6 +47,7 @@ public class ChromaConfig {
                 .apiKey(groqApiKey)
                 .modelName(groqModel)
                 .timeout(Duration.ofSeconds(groqTimeoutSeconds))
+                .maxTokens(groqMaxOutputTokens)
                 .maxRetries(1) // LogAdvisorService retries rate limits itself, after the wait Groq asks for
                 .build();
     }

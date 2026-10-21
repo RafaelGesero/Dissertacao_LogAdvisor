@@ -1,5 +1,7 @@
 package com.dissertacao.logadvisor.backend.controller;
 
+import com.dissertacao.logadvisor.backend.config.Messages;
+
 import java.util.List;
 
 import org.springframework.http.HttpStatus;
@@ -53,7 +55,7 @@ public class SearchController {
         String query = request.getQuery() == null ? "" : request.getQuery().trim();
         if (query.isEmpty() || query.length() > MAX_QUERY_CHARS) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "A descrição tem de ter entre 1 e " + MAX_QUERY_CHARS + " caracteres.");
+                    Messages.t("advice.description.length", MAX_QUERY_CHARS));
         }
         LogAdviceResponse response = logAdvisorService.getLoggingAdvice(query, SearchMode.parse(request.getMode()));
         response.setHistoryId(searchHistoryService.save(user, query, response));

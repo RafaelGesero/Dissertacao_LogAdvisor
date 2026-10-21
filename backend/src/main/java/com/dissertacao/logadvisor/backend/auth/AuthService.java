@@ -1,5 +1,7 @@
 package com.dissertacao.logadvisor.backend.auth;
 
+import com.dissertacao.logadvisor.backend.config.Messages;
+
 import java.time.LocalDateTime;
 import java.util.regex.Pattern;
 
@@ -34,12 +36,11 @@ public class AuthService {
     public AuthResponse register(AuthRequest request) {
         String email = normalize(request.getEmail());
         if (!USERNAME.matcher(email).matches()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "O nome de utilizador tem de ter entre 3 e 50 caracteres: letras, números, '.', '_', '-' ou '@'.");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, Messages.t("auth.username.invalid"));
         }
         validatePassword(request.getPassword());
         if (userRepository.findByEmail(email).isPresent()) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Esse nome de utilizador já existe.");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, Messages.t("auth.username.taken"));
         }
         User user = User.builder()
                 .email(email)
@@ -59,7 +60,7 @@ public class AuthService {
                     new UsernamePasswordAuthenticationToken(email, request.getPassword())
             );
         } catch (AuthenticationException e) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Credenciais inválidas.");
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, Messages.t("auth.credentials.invalid"));
         }
         User user = userRepository.findByEmail(email).orElseThrow();
         return toResponse(user);
@@ -68,11 +69,11 @@ public class AuthService {
     public void changePassword(User user, ChangePasswordRequest request) {
         if (request.getCurrentPassword() == null
                 || !passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A password atual está incorreta.");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, Messages.t("auth.password.current.wrong"));
         }
         validatePassword(request.getNewPassword());
         if (passwordEncoder.matches(request.getNewPassword(), user.getPassword())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A nova password tem de ser diferente da atual.");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, Messages.t("auth.password.same"));
         }
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
         userRepository.save(user);
@@ -81,7 +82,7 @@ public class AuthService {
 
     public void resetPassword(Long userId, ResetPasswordRequest request) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Utilizador não encontrado."));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, Messages.t("auth.user.notFound")));
         validatePassword(request.getNewPassword());
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
         userRepository.save(user);
@@ -91,7 +92,7 @@ public class AuthService {
     private void validatePassword(String password) {
         if (password == null || password.length() < MIN_PASSWORD || password.length() > MAX_PASSWORD) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "A password tem de ter entre " + MIN_PASSWORD + " e " + MAX_PASSWORD + " caracteres.");
+                    Messages.t("auth.password.length", MIN_PASSWORD, MAX_PASSWORD));
         }
     }
 

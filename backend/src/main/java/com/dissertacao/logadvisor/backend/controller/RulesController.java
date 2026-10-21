@@ -26,7 +26,8 @@ public class RulesController {
 
     private final RulesFileService rules;
 
-    public record RuleGroup(String label, List<RuleItem> items) {}
+    /** {@code key} lets the frontend translate the label. */
+    public record RuleGroup(String key, String label, List<RuleItem> items) {}
 
     public record RulesView(String version, List<TechSection> technologies, List<RuleGroup> groups, List<Source> sources) {}
 
@@ -45,12 +46,12 @@ public class RulesController {
     public ResponseEntity<RulesView> rules() {
         List<RuleGroup> groups = new ArrayList<>();
         for (Category c : Category.values()) {
-            groups.add(new RuleGroup(LABELS.get(c), rules.items(c)));
+            groups.add(new RuleGroup(c.name(), LABELS.get(c), rules.items(c)));
             if (c == Category.SECURITY) {
                 List<RuleItem> events = rules.getEventCodes().entrySet().stream()
                         .map(e -> new RuleItem(e.getKey(), Category.SECURITY, e.getValue()))
                         .toList();
-                groups.add(new RuleGroup("Security event codes", events));
+                groups.add(new RuleGroup("EVENT_CODES", "Security event codes", events));
             }
         }
         return ResponseEntity.ok(new RulesView(

@@ -5,21 +5,25 @@ import { usePathname } from "next/navigation"
 import { LayoutDashboard, Shield, Database, Share2, ShieldCheck, LogOut } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { signOut, useCurrentUser } from "@/lib/auth"
+import { useT } from "@/lib/i18n"
+import type { TranslationKey } from "@/lib/translations"
 
-const baseNavigation = [
+type NavSection = { title: TranslationKey; items: { name: TranslationKey; href: string; icon: React.ElementType }[] }
+
+const baseNavigation: NavSection[] = [
   {
-    title: "Workspace",
+    title: "nav.workspace",
     items: [
-      { name: "Start", href: "/", icon: LayoutDashboard },
-      { name: "Shared Analyses", href: "/shared", icon: Share2 },
-      { name: "Knowledge Base", href: "/knowledge-base", icon: Database },
+      { name: "nav.start", href: "/", icon: LayoutDashboard },
+      { name: "nav.shared", href: "/shared", icon: Share2 },
+      { name: "nav.kb", href: "/knowledge-base", icon: Database },
     ],
   },
 ]
 
-const adminNavigation = {
-  title: "Administration",
-  items: [{ name: "Analyses & Users", href: "/admin", icon: ShieldCheck }],
+const adminNavigation: NavSection = {
+  title: "nav.administration",
+  items: [{ name: "nav.admin", href: "/admin", icon: ShieldCheck }],
 }
 
 export function initials(name: string | undefined) {
@@ -30,6 +34,7 @@ export function initials(name: string | undefined) {
 export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname()
   const me = useCurrentUser()
+  const { t } = useT()
   const navigation = me?.role === "ADMIN" ? [...baseNavigation, adminNavigation] : baseNavigation
 
   return (
@@ -40,7 +45,7 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
         </div>
         <div className="leading-tight">
           <p className="text-[15px] font-semibold text-foreground">LoggingAdvisor</p>
-          <p className="text-[11px] text-muted-foreground">Secure logging guidance</p>
+          <p className="text-[11px] text-muted-foreground">{t("brand.tagline")}</p>
         </div>
       </Link>
 
@@ -48,13 +53,13 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
         {navigation.map((section) => (
           <div key={section.title}>
             <h3 className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/80">
-              {section.title}
+              {t(section.title)}
             </h3>
             <ul className="space-y-0.5">
               {section.items.map((item) => {
                 const isActive = pathname === item.href
                 return (
-                  <li key={item.name}>
+                  <li key={item.href}>
                     <Link
                       href={item.href}
                       onClick={onNavigate}
@@ -67,7 +72,7 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
                     >
                       {isActive && <span className="absolute inset-y-1.5 left-0 w-0.5 rounded-full bg-accent" />}
                       <item.icon className={cn("h-4 w-4", isActive && "text-accent")} />
-                      {item.name}
+                      {t(item.name)}
                     </Link>
                   </li>
                 )
@@ -84,13 +89,13 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
               {initials(me?.email)}
             </div>
             <div className="min-w-0 leading-tight">
-              <p className="truncate text-sm font-medium text-foreground">{me?.email ?? "Account"}</p>
-              <p className="text-[11px] text-muted-foreground">{me?.role === "ADMIN" ? "Administrator" : "User"}</p>
+              <p className="truncate text-sm font-medium text-foreground">{me?.email ?? t("nav.account")}</p>
+              <p className="text-[11px] text-muted-foreground">{me?.role === "ADMIN" ? t("role.admin") : t("role.user")}</p>
             </div>
           </Link>
           <button
             onClick={signOut}
-            title="Sign out"
+            title={t("nav.signOut")}
             className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground"
           >
             <LogOut className="h-4 w-4" />

@@ -2,7 +2,9 @@
 
 import { useState, type ElementType } from "react"
 import { API_URL, apiJson, errorMessage } from "@/lib/auth"
-import { type AnalysisResult, displayKeywords, modeInfo } from "@/lib/analysis"
+import { type AnalysisResult, NO_INFO_MESSAGES, displayKeywords, modeInfo } from "@/lib/analysis"
+import { formatDate, useT } from "@/lib/i18n"
+import type { TranslationKey } from "@/lib/translations"
 import { ToneBadge } from "@/components/page-parts"
 import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
@@ -24,19 +26,19 @@ import {
   Share2,
 } from "lucide-react"
 
-const NO_INFO = "Não foi encontrada informação relevante sobre o tema em questão"
 
-const CONTENT_SECTIONS = [
-  { key: "Evidence", label: "Evidence", Icon: Info },
-  { key: "Mandatory Fields", label: "Mandatory Fields", Icon: ListChecks },
-  { key: "Log Levels", label: "Log Levels", Icon: FileText },
-  { key: "Security Events", label: "Security Events", Icon: ShieldCheck },
-  { key: "Log Template", label: "Log Template", Icon: Code2 },
-  { key: "Key Rules", label: "Key Rules", Icon: Scale },
+// Markers stay in English in every language (the backend/LLM keep them); only the labels are translated
+const CONTENT_SECTIONS: { key: string; label: TranslationKey; Icon: ElementType }[] = [
+  { key: "Evidence", label: "block.evidence", Icon: Info },
+  { key: "Mandatory Fields", label: "block.mandatoryFields", Icon: ListChecks },
+  { key: "Log Levels", label: "block.logLevels", Icon: FileText },
+  { key: "Security Events", label: "block.securityEvents", Icon: ShieldCheck },
+  { key: "Log Template", label: "block.logTemplate", Icon: Code2 },
+  { key: "Key Rules", label: "block.keyRules", Icon: Scale },
 ]
 
 function parseContent(content: string) {
-  const blocks: { label: string; Icon: ElementType; text: string; isCode: boolean }[] = []
+  const blocks: { label: TranslationKey | ""; Icon: ElementType; text: string; isCode: boolean }[] = []
   for (let i = 0; i < CONTENT_SECTIONS.length; i++) {
     const { key, label, Icon } = CONTENT_SECTIONS[i]
     const marker = `${key}:`
@@ -68,10 +70,11 @@ function TextPanel({ text, empty }: { text: string; empty: string }) {
 }
 
 function SourceRow({ title, publication, link }: { title: string; publication?: string; link?: string }) {
+  const { t } = useT()
   return (
     <div className="px-3 py-2 flex items-start justify-between gap-3">
       <div className="min-w-0">
-        <p className="text-xs font-medium text-foreground leading-snug">{title || "Untitled"}</p>
+        <p className="text-xs font-medium text-foreground leading-snug">{title || t("analysis.untitled")}</p>
         {publication && <p className="text-[11px] text-muted-foreground mt-0.5 truncate">{publication}</p>}
       </div>
       {link && (
@@ -102,6 +105,7 @@ type Props = {
 export function AnalysisResultDialog({ result, open, onOpenChange, canShare, showOwner, onSharedChange }: Props) {
   const [saving, setSaving] = useState(false)
   const [shareError, setShareError] = useState<string | null>(null)
+  const { t, lang } = useT()
 
   const toggleShare = async (shared: boolean) => {
     if (!result?.historyId) return
@@ -112,7 +116,7 @@ export function AnalysisResultDialog({ result, open, onOpenChange, canShare, sho
       if (!res.ok) throw new Error(await errorMessage(res))
       onSharedChange?.(result.historyId, shared)
     } catch (e) {
-      setShareError(e instanceof Error ? e.message : "Could not change sharing.")
+      setShareError(e instanceof Error ? e.message : t("result.shareError"))
     } finally {
       setSaving(false)
     }
@@ -129,12 +133,12 @@ export function AnalysisResultDialog({ result, open, onOpenChange, canShare, sho
         <DialogHeader className="px-6 pt-6 pb-4 border-b border-border shrink-0 space-y-3">
           <DialogTitle className="flex items-center gap-2 text-foreground pr-6">
             <Code2 className="h-5 w-5 text-accent shrink-0" />
-            <span className="truncate">{result ? displayKeywords(result.keywords) : "Analysis Results"}</span>
+            <span className="truncate">{result ? displayKeywords(result.keywords, t("analysis.untitled")) : t("result.title")}</span>
           </DialogTitle>
           {result && (
             <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
               <ToneBadge tone={mode.tone} icon={mode.Icon}>
-                {mode.title}
+                {t(mode.title)}
               </ToneBadge>
               {showOwner && result.owner && (
                 <span className="flex items-center gap-1">
@@ -142,19 +146,19 @@ export function AnalysisResultDialog({ result, open, onOpenChange, canShare, sho
                   {result.owner}
                 </span>
               )}
-              {result.createdAt && <span>{result.createdAt}</span>}
+              {result.createdAt && <span>{formatDate(result.createdAt, lang)}</span>}
 
               {canShare && result.historyId && (
                 <label className="ml-auto flex items-center gap-2 cursor-pointer select-none">
                   <Share2 className="h-3.5 w-3.5" />
-                  <span className="text-foreground">Share with other users</span>
+                  <span className="text-foreground">{t("result.shareSwitch")}</span>
                   <Switch checked={result.shared} disabled={saving} onCheckedChange={toggleShare} className="data-[state=checked]:bg-accent" />
                 </label>
               )}
               {!canShare && result.shared && (
                 <Badge variant="outline" className="ml-auto border-accent/40 text-accent gap-1 font-normal">
                   <Share2 className="h-3 w-3" />
-                  Shared
+                  {t("analysis.shared")}
                 </Badge>
               )}
             </div>
@@ -162,7 +166,7 @@ export function AnalysisResultDialog({ result, open, onOpenChange, canShare, sho
           {shareError && <p className="text-xs text-red-400">{shareError}</p>}
           {result?.query && (
             <details className="text-xs text-muted-foreground">
-              <summary className="cursor-pointer hover:text-foreground">Application description</summary>
+              <summary className="cursor-pointer hover:text-foreground">{t("result.description")}</summary>
               <p className="mt-2 whitespace-pre-line leading-relaxed">{result.query}</p>
             </details>
           )}
@@ -178,23 +182,23 @@ export function AnalysisResultDialog({ result, open, onOpenChange, canShare, sho
               <TabsList className="bg-muted flex-wrap h-auto">
                 <TabsTrigger value="structure" className="gap-1.5 text-sm">
                   <FileText className="h-3.5 w-3.5" />
-                  Log Structure
+                  {t("result.tab.structure")}
                 </TabsTrigger>
                 <TabsTrigger value="security" className="gap-1.5 text-sm">
                   <ShieldCheck className="h-3.5 w-3.5" />
-                  Security
+                  {t("result.tab.security")}
                 </TabsTrigger>
                 <TabsTrigger value="data" className="gap-1.5 text-sm">
                   <Fingerprint className="h-3.5 w-3.5" />
-                  Data Types
+                  {t("result.tab.data")}
                 </TabsTrigger>
                 <TabsTrigger value="storage" className="gap-1.5 text-sm">
                   <HardDrive className="h-3.5 w-3.5" />
-                  Storage
+                  {t("result.tab.storage")}
                 </TabsTrigger>
                 <TabsTrigger value="sources" className="gap-1.5 text-sm">
                   <BookOpen className="h-3.5 w-3.5" />
-                  Sources
+                  {t("result.tab.sources")}
                 </TabsTrigger>
               </TabsList>
             </div>
@@ -211,7 +215,7 @@ export function AnalysisResultDialog({ result, open, onOpenChange, canShare, sho
                   </TabsList>
                   {result.logStructure.map((s) => (
                     <TabsContent key={s.technology} value={s.technology} className="mt-0">
-                      {s.content === NO_INFO ? (
+                      {NO_INFO_MESSAGES.includes(s.content.trim()) ? (
                         <p className="text-sm text-muted-foreground italic py-6 text-center">{s.content}</p>
                       ) : (
                         <div className="space-y-3">
@@ -223,7 +227,7 @@ export function AnalysisResultDialog({ result, open, onOpenChange, canShare, sho
                                   <div className="flex items-center gap-2 bg-muted/70 border-b border-border px-3 py-2">
                                     <Icon className="h-3.5 w-3.5 text-accent" />
                                     <span className="text-xs font-semibold text-foreground uppercase tracking-wide">
-                                      {block.label}
+                                      {t(block.label)}
                                     </span>
                                   </div>
                                 )}
@@ -251,10 +255,10 @@ export function AnalysisResultDialog({ result, open, onOpenChange, canShare, sho
                                 <div className="flex items-center gap-2 bg-muted/70 border-b border-border px-3 py-2">
                                   <BookOpen className="h-3.5 w-3.5 text-accent" />
                                   <span className="text-xs font-semibold text-foreground uppercase tracking-wide">
-                                    Sources
+                                    {t("result.tab.sources")}
                                   </span>
                                   <span className="ml-auto text-[10px] text-muted-foreground">
-                                    {techSources.length} {techSources.length === 1 ? "article" : "articles"}
+                                    {t(techSources.length === 1 ? "result.articleCount.one" : "result.articleCount.other", { n: techSources.length })}
                                   </span>
                                 </div>
                                 <div className="divide-y divide-border">
@@ -273,15 +277,15 @@ export function AnalysisResultDialog({ result, open, onOpenChange, canShare, sho
               </TabsContent>
 
               <TabsContent value="security" className="mt-0">
-                <TextPanel text={result.securityGuidance} empty="No security guidance in this analysis." />
+                <TextPanel text={result.securityGuidance} empty={t("result.empty.security")} />
               </TabsContent>
 
               <TabsContent value="data" className="mt-0">
-                <TextPanel text={result.dataTypes} empty="No data type guidance in this analysis." />
+                <TextPanel text={result.dataTypes} empty={t("result.empty.data")} />
               </TabsContent>
 
               <TabsContent value="storage" className="mt-0">
-                <TextPanel text={result.storageTips} empty="No storage tips in this analysis." />
+                <TextPanel text={result.storageTips} empty={t("result.empty.storage")} />
               </TabsContent>
 
               <TabsContent value="sources" className="mt-0 space-y-4">
@@ -290,7 +294,7 @@ export function AnalysisResultDialog({ result, open, onOpenChange, canShare, sho
                     <div className="flex items-center gap-2 border-b border-accent/20 px-3 py-2">
                       <Sparkles className="h-3.5 w-3.5 text-accent" />
                       <span className="text-xs font-semibold text-foreground uppercase tracking-wide">
-                        New articles added to the knowledge base
+                        {t("result.newArticles")}
                       </span>
                       <span className="ml-auto text-[10px] text-muted-foreground">{result.newArticles.length}</span>
                     </div>
@@ -307,7 +311,7 @@ export function AnalysisResultDialog({ result, open, onOpenChange, canShare, sho
                       </div>
                     ) : (
                       <p className="text-xs text-muted-foreground px-3 py-3">
-                        No new articles were found: every result was already in the knowledge base.
+                        {t("result.noNewArticles")}
                       </p>
                     )}
                   </div>
@@ -317,12 +321,12 @@ export function AnalysisResultDialog({ result, open, onOpenChange, canShare, sho
                   <div className="space-y-3">
                     {result.mode === "RULES" && (
                       <p className="text-xs text-muted-foreground">
-                        Bibliography entries of the predefined rules cited in this analysis.
+                        {t("result.rulesSources")}
                       </p>
                     )}
                     {result.sources.map((source, i) => (
                       <div key={i} className="rounded-md bg-muted/50 border border-border p-3 space-y-1.5">
-                        <p className="text-sm font-medium text-foreground leading-snug">{source.title || "Untitled"}</p>
+                        <p className="text-sm font-medium text-foreground leading-snug">{source.title || t("analysis.untitled")}</p>
                         {source.publication && <p className="text-xs text-muted-foreground">{source.publication}</p>}
                         {source.link && (
                           <a
@@ -332,7 +336,7 @@ export function AnalysisResultDialog({ result, open, onOpenChange, canShare, sho
                             className="flex items-center gap-1 text-xs text-accent hover:underline w-fit"
                           >
                             <ExternalLink className="h-3 w-3" />
-                            View article
+                            {t("result.viewArticle")}
                           </a>
                         )}
                       </div>
@@ -340,7 +344,7 @@ export function AnalysisResultDialog({ result, open, onOpenChange, canShare, sho
                   </div>
                 ) : (
                   <p className="text-sm text-muted-foreground text-center py-10">
-                    No sources available for this analysis.
+                    {t("result.noSources")}
                   </p>
                 )}
               </TabsContent>

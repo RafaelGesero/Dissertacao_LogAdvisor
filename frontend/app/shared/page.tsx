@@ -9,9 +9,11 @@ import { AnalysisResultDialog } from "@/components/analysis-result-dialog"
 import { EmptyState, ErrorBanner, LoadingState, SectionHeader } from "@/components/page-parts"
 import { Input } from "@/components/ui/input"
 import { Search, Share2 } from "lucide-react"
+import { useT } from "@/lib/i18n"
 
 export default function SharedAnalysesPage() {
   const me = useCurrentUser()
+  const { t } = useT()
   const [items, setItems] = useState<AnalysisResult[]>([])
   const [filter, setFilter] = useState("")
   const [isLoading, setIsLoading] = useState(true)
@@ -26,7 +28,7 @@ export default function SharedAnalysesPage() {
         return r.json()
       })
       .then((entries: HistoryEntry[]) => setItems(entries.map(historyToResult)))
-      .catch((e) => setError(e instanceof Error ? e.message : "Failed to load shared analyses."))
+      .catch((e) => setError(e instanceof Error ? e.message : t("shared.loadError")))
       .finally(() => setIsLoading(false))
   }, [])
 
@@ -45,17 +47,17 @@ export default function SharedAnalysesPage() {
   }
 
   return (
-    <AppShell title="Shared Analyses" description="Analyses that LoggingAdvisor users chose to share with everyone">
+    <AppShell title={t("shared.title")} description={t("shared.subtitle")}>
       <div className="mx-auto max-w-4xl space-y-6">
         <SectionHeader
-          title="Shared with everyone"
-          description="Open an analysis to see its log structure, security guidance and sources."
+          title={t("shared.sectionTitle")}
+          description={t("shared.sectionText")}
           count={items.length}
         >
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Technology, description or user…"
+              placeholder={t("shared.filter")}
               className="h-9 w-64 border-border bg-input pl-8 text-sm"
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
@@ -63,16 +65,16 @@ export default function SharedAnalysesPage() {
           </div>
         </SectionHeader>
 
-        {isLoading && <LoadingState label="Loading shared analyses…" />}
+        {isLoading && <LoadingState label={t("shared.loading")} />}
         {error && <ErrorBanner message={error} />}
 
         {!isLoading && !error && visible.length === 0 && (
           <EmptyState
             icon={Share2}
-            title={items.length === 0 ? "Nothing shared yet" : "No shared analysis matches the filter"}
+            title={items.length === 0 ? t("shared.empty.title") : t("shared.empty.filter")}
             description={
               items.length === 0
-                ? "Open one of your analyses and turn on “Share with other users” to show it here."
+                ? t("shared.empty.text")
                 : undefined
             }
           />

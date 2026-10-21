@@ -1,8 +1,10 @@
 package com.dissertacao.logadvisor.backend.service;
 
+import com.dissertacao.logadvisor.backend.config.Messages;
+
 import java.lang.reflect.Type;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -34,9 +36,6 @@ public class SearchHistoryService {
     private final ArticleRepository articleRepository;
     private final KnowledgeBaseService knowledgeBaseService;
     private final Gson gson = new Gson();
-
-    private static final DateTimeFormatter FORMATTER =
-            DateTimeFormatter.ofPattern("d MMM yyyy, HH:mm");
 
     private static final Type LOG_SECTIONS_TYPE =
             new TypeToken<List<LogSection>>() {}.getType();
@@ -97,10 +96,10 @@ public class SearchHistoryService {
     /** The owner can change/delete an analysis; the admin can do it for any analysis. */
     private SearchHistory findOwned(User user, Long id) {
         SearchHistory entry = repository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Análise não encontrada."));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, Messages.t("history.notFound")));
         boolean isOwner = entry.getUser() != null && entry.getUser().getId().equals(user.getId());
         if (!isOwner && !user.isAdmin()) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Esta análise pertence a outro utilizador.");
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, Messages.t("history.notOwner"));
         }
         return entry;
     }
@@ -137,7 +136,8 @@ public class SearchHistoryService {
                 .id(h.getId())
                 .keywords(h.getKeywords())
                 .query(h.getQuery())
-                .createdAt(h.getCreatedAt().format(FORMATTER))
+                // ISO-8601 with offset; the frontend formats it in the user's language
+                .createdAt(h.getCreatedAt().atZone(ZoneId.systemDefault()).toOffsetDateTime().toString())
                 .mode(h.getMode() != null ? h.getMode() : SearchMode.KB_WITH_NEW.name())
                 .shared(h.isShared())
                 .owner(h.getUser() != null ? h.getUser().getEmail() : null)
